@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "FanLoot | All-in-one Fan Platform Downloader",
+    "description": "Extension display name shown in Edge / Chrome stores and browser UI."
+  },
+  "extensionDescription": {
+    "message": "Batch download unlocked Fantia, Fanbox, Patreon, and Pawchive posts: images, videos, audio, attachments, and cloud links. Filter by date, plan, collection, type; save with custom folders.",
+    "description": "Short store / browser description for the extension."
+  },
+  "actionTitle": {
+    "message": "Open FanLoot",
+    "description": "Toolbar button tooltip when clicking the extension icon."
+  }
+}

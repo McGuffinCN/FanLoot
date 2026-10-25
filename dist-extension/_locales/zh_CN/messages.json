@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "FanLoot | 全能赞助平台下载器",
+    "description": "Extension display name shown in Edge / Chrome stores and browser UI."
+  },
+  "extensionDescription": {
+    "message": "批量下载 Fantia / pixivFANBOX / Patreon / Pawchive 作者投稿中的图片、视频、音频、附件与正文网盘链接；支持日期范围、订阅方案、合集筛选、文件类型筛选与自定义文件名规则。",
+    "description": "Short store / browser description for the extension."
+  },
+  "actionTitle": {
+    "message": "打开 FanLoot",
+    "description": "Toolbar button tooltip when clicking the extension icon."
+  }
+}

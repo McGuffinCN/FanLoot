@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FanLoot | 全能赞助平台下载器
 // @namespace    https://guff.in/
-// @version      1.5.0
+// @version      1.5.1
 // @description  批量下载 Fantia / pixivFANBOX / Patreon / Pawchive 作者投稿中的图片、视频、音频、附件与正文网盘链接；支持日期范围、订阅方案、合集筛选、文件类型筛选与自定义文件名规则。
 // @author       McGuffin
 // @match        https://fantia.jp/*

@@ -1,0 +1,64 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.fanbox.cc/"
+        },
+        {
+          "header": "Origin",
+          "operation": "set",
+          "value": "https://www.fanbox.cc"
+        }
+      ]
+    },
+    "condition": {
+      "requestDomains": [
+        "downloads.fanbox.cc",
+        "pximg.net",
+        "api.fanbox.cc"
+      ],
+      "resourceTypes": [
+        "xmlhttprequest",
+        "image",
+        "media",
+        "other",
+        "main_frame",
+        "sub_frame"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://fantia.jp/"
+        }
+      ]
+    },
+    "condition": {
+      "requestDomains": [
+        "c.fantia.jp",
+        "cc.fantia.jp"
+      ],
+      "resourceTypes": [
+        "xmlhttprequest",
+        "image",
+        "media",
+        "other",
+        "main_frame",
+        "sub_frame"
+      ]
+    }
+  }
+]

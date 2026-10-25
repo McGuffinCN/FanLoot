@@ -2,3 +2,7 @@
 !fanloot.user.js
 !README.md
 !.gitignore
+!build_extension.py
+!dist-extension/
+!dist-extension/**
+dist-extension/_metadata/
