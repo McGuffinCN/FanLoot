@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FanLoot | 全能赞助平台下载器
 // @namespace    https://guff.in/
-// @version      1.4.7
+// @version      1.4.9
 // @description  批量下载 Fantia / pixivFANBOX / Patreon / Pawchive 作者投稿中的图片、视频、音频、附件与正文网盘链接；支持日期范围、订阅方案、合集筛选、文件类型筛选与自定义文件名规则。
 // @author       McGuffin
 // @match        https://fantia.jp/*
@@ -124,6 +124,7 @@
     root.style.setProperty('--accent-soft', theme.accentSoft);
     root.style.setProperty('--apricot', theme.apricot);
     root.style.setProperty('--shadow-rgb', theme.shadow);
+    root.classList.add('theme-ready');
   }
 function defaultTemplateFor(site) {
     if (site === 'pawchive') return 'Pawchive/{user}/{date} {title} ({post_id})/{index}_{name}';
@@ -217,9 +218,142 @@ function defaultTemplateFor(site) {
     })[c]);
   }
 
+  const IS_EXT = typeof chrome !== 'undefined'
+    && !!(chrome && chrome.runtime && chrome.runtime.id)
+    && typeof GM_download !== 'function';
+  const extStorageCache = Object.create(null);
+  const extActiveDownloads = new Map();
+  let extReqSeq = 0;
+
+  if (IS_EXT && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'FANLOOT_OPEN_PANEL') {
+        if (!ui) mountUI();
+        openPanel();
+        return;
+      }
+      if (msg.type === 'FANLOOT_DL_PROGRESS') {
+        const entry = extActiveDownloads.get(msg.requestId);
+        if (entry && typeof entry.onprogress === 'function') {
+          entry.onprogress({ loaded: msg.loaded || 0, total: msg.total || 0 });
+        }
+        return;
+      }
+      if (msg.type === 'FANLOOT_DL_DONE') {
+        const entry = extActiveDownloads.get(msg.requestId);
+        if (!entry) return;
+        extActiveDownloads.delete(msg.requestId);
+        if (msg.ok) {
+          if (typeof entry.onload === 'function') entry.onload();
+        } else if (typeof entry.onerror === 'function') {
+          entry.onerror({ error: msg.error || 'not_succeeded', details: msg.details });
+        }
+      }
+    });
+  }
+
+  function hydrateExtensionStorage() {
+    if (!IS_EXT || !chrome.storage || !chrome.storage.local) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get([SETTINGS_KEY, HISTORY_KEY], (items) => {
+          if (items && typeof items === 'object') {
+            if ( items[SETTINGS_KEY] !== undefined) extStorageCache[SETTINGS_KEY] = items[SETTINGS_KEY];
+            if ( items[HISTORY_KEY] !== undefined) extStorageCache[HISTORY_KEY] = items[HISTORY_KEY];
+          }
+          resolve();
+        });
+      } catch (_) {
+        resolve();
+      }
+    });
+  }
+
+  function hasCrossOriginXhr() {
+    return typeof GM_xmlhttpRequest === 'function' || IS_EXT;
+  }
+
+  function crossOriginXhr(details) {
+    if (typeof GM_xmlhttpRequest === 'function') return GM_xmlhttpRequest(details);
+    if (!IS_EXT) {
+      if (details && typeof details.onerror === 'function') details.onerror(new Error('unsupported'));
+      return { abort() {} };
+    }
+    let aborted = false;
+    chrome.runtime.sendMessage({
+      type: 'FANLOOT_XHR',
+      method: (details && details.method) || 'GET',
+      url: details && details.url,
+      headers: (details && details.headers) || {},
+      anonymous: !!(details && details.anonymous),
+      responseType: (details && details.responseType) || 'text',
+    }, (res) => {
+      if (aborted) return;
+      const lastErr = chrome.runtime && chrome.runtime.lastError;
+      if (lastErr || !res || !res.ok) {
+        if (res && res.status && typeof details.onload === 'function') {
+          details.onload({ status: res.status, responseText: res.text || '' });
+        } else if (typeof details.onerror === 'function') {
+          details.onerror(new Error((res && res.error) || (lastErr && lastErr.message) || 'network error'));
+        }
+        return;
+      }
+      if (typeof details.onload === 'function') {
+        details.onload({ status: res.status || 200, responseText: res.text || '' });
+      }
+    });
+    return {
+      abort() {
+        aborted = true;
+      },
+    };
+  }
+
+  function hasNativeDownload() {
+    return typeof GM_download === 'function' || IS_EXT;
+  }
+
+  function startNativeDownload(details) {
+    if (typeof GM_download === 'function') return GM_download(details);
+    const requestId = `dl_${Date.now()}_${++extReqSeq}`;
+    extActiveDownloads.set(requestId, details);
+    chrome.runtime.sendMessage({
+      type: 'FANLOOT_DOWNLOAD',
+      requestId,
+      url: details.url,
+      name: details.name,
+      saveAs: !!details.saveAs,
+      conflictAction: details.conflictAction || 'uniquify',
+    }, (res) => {
+      const lastErr = chrome.runtime && chrome.runtime.lastError;
+      if (lastErr || (res && res.ok === false)) {
+        if (!extActiveDownloads.has(requestId)) return;
+        extActiveDownloads.delete(requestId);
+        if (typeof details.onerror === 'function') {
+          details.onerror({
+            error: (res && res.error) || 'not_succeeded',
+            details: (res && res.details) || (lastErr && lastErr.message),
+          });
+        }
+      }
+    });
+    return {
+      abort() {
+        extActiveDownloads.delete(requestId);
+        try {
+          chrome.runtime.sendMessage({ type: 'FANLOOT_DL_ABORT', requestId });
+        } catch (_) { /* ignore */ }
+      },
+    };
+  }
+
   function gmGet(key, fallback) {
     try {
       if (typeof GM_getValue === 'function') return GM_getValue(key, fallback);
+      if (IS_EXT && Object.prototype.hasOwnProperty.call(extStorageCache, key)) {
+        return extStorageCache[key];
+      }
       const raw = localStorage.getItem(key);
       return raw == null ? fallback : JSON.parse(raw);
     } catch (_) {
@@ -230,7 +364,15 @@ function defaultTemplateFor(site) {
   function gmSet(key, value) {
     try {
       if (typeof GM_setValue === 'function') GM_setValue(key, value);
-      else localStorage.setItem(key, JSON.stringify(value));
+      else {
+        if (IS_EXT) {
+          extStorageCache[key] = value;
+          if (chrome.storage && chrome.storage.local) {
+            chrome.storage.local.set({ [key]: value });
+          }
+        }
+        localStorage.setItem(key, JSON.stringify(value));
+      }
     } catch (_) { /* storage is best-effort */ }
   }
 
@@ -1393,7 +1535,6 @@ function defaultTemplateFor(site) {
     '115.com',
     'ctfile.com',
     'cloud.189.cn',
-    'iframely.net',
   ];
 
   function looksLikeCloudUrl(url) {
@@ -1415,7 +1556,6 @@ function defaultTemplateFor(site) {
 
   function cloudProviderLabel(url) {
     const value = String(url || '').toLowerCase();
-    if (value.includes('iframely.net')) return 'Iframely';
     if (value.includes('baidu.com')) return '百度网盘';
     if (value.includes('mega.nz') || value.includes('mega.co.nz')) return 'MEGA';
     if (value.includes('drive.google.com') || value.includes('docs.google.com') || value.includes('googleapis.com/drive')) return 'Google Drive';
@@ -3154,10 +3294,10 @@ function defaultTemplateFor(site) {
         return false;
       }
     })();
-    if (!sameOrigin && typeof GM_xmlhttpRequest === 'function') {
+    if (!sameOrigin && hasCrossOriginXhr()) {
       try {
         const html = await new Promise((resolve, reject) => {
-          const req = GM_xmlhttpRequest({
+          const req = crossOriginXhr({
             method: 'GET',
             url,
             anonymous: false,
@@ -3253,10 +3393,10 @@ function defaultTemplateFor(site) {
   async function requestExternalText(url, options = {}, attempt = 1) {
     const target = String(url || '').trim();
     if (!target) throw new Error('empty url');
-    if (typeof GM_xmlhttpRequest === 'function') {
+    if (hasCrossOriginXhr()) {
       try {
         return await new Promise((resolve, reject) => {
-          const req = GM_xmlhttpRequest({
+          const req = crossOriginXhr({
             method: 'GET',
             url: target,
             anonymous: true,
@@ -3320,6 +3460,51 @@ function defaultTemplateFor(site) {
     return '';
   }
 
+  function inspectIframelyPayload(payload) {
+    if (!payload) return { kind: 'empty', url: '' };
+    let data = payload;
+    let html = '';
+    if (typeof payload === 'string') {
+      html = payload;
+      try { data = JSON.parse(payload); }
+      catch (_) { data = null; }
+    }
+    if (data && typeof data === 'object') {
+      const candidates = [
+        data.url,
+        data.canonical,
+        data.meta && data.meta.canonical,
+        data.meta && data.meta.url,
+        data.meta && data.meta.site,
+      ].map((item) => decodeHtmlEntities(String(item || '').trim()).replace(/\\+$/g, '')).filter(Boolean);
+      for (const url of candidates) {
+        if (looksLikeCloudUrl(url) && !isIframelyUrl(url)) return { kind: 'cloud', url };
+      }
+      // Non-cloud destinations such as Ci-en / DLsite / DMM should be ignored quietly.
+      for (const url of candidates) {
+        if (/^https?:\/\//i.test(url) && !isIframelyUrl(url)) return { kind: 'external', url };
+      }
+      const site = String((data.meta && (data.meta.site || data.meta.medium)) || '').toLowerCase();
+      if (site && !/mega|drive|dropbox|onedrive|mediafire|gofile|pixeldrain|baidu|aliyun|alipan/.test(site)) {
+        return { kind: 'external', url: candidates[0] || site };
+      }
+    }
+    if (html) {
+      const twt = html.match(/class=["']twt["']\s*>\s*([^<]+)\s*</i);
+      if (twt) {
+        const label = String(twt[1] || '').trim().toLowerCase();
+        if (/mega\.nz|mega\.co\.nz|drive\.google|dropbox|onedrive|1drv\.ms|mediafire|gofile|pixeldrain|baidu|aliyundrive|alipan|lanzou|123pan|terabox/.test(label)) {
+          const cloud = extractCanonicalOrCloudFromHtml(html);
+          if (cloud) return { kind: 'cloud', url: cloud };
+        }
+        return { kind: 'external', url: label };
+      }
+      const cloud = extractCanonicalOrCloudFromHtml(html);
+      if (cloud) return { kind: 'cloud', url: cloud };
+    }
+    return { kind: 'empty', url: '' };
+  }
+
   async function resolveIframelyCloudUrl(url, signal) {
     const target = decodeHtmlEntities(String(url || '').trim());
     if (!target || !isIframelyUrl(target)) return '';
@@ -3340,8 +3525,9 @@ function defaultTemplateFor(site) {
             signal,
             accept: /\.json(?:$|\?)/i.test(endpoint) ? 'application/json,*/*' : 'text/html,*/*',
           });
-          const resolved = cloudUrlFromIframelyPayload(body);
-          if (resolved) return resolved;
+          const inspected = inspectIframelyPayload(body);
+          if (inspected.kind === 'cloud' && inspected.url) return inspected.url;
+          if (inspected.kind === 'external') return null; // non-cloud outer link, ignore quietly
           lastError = `empty payload from ${endpoint}`;
         } catch (error) {
           if (signal && signal.aborted) throw error;
@@ -3382,13 +3568,23 @@ function defaultTemplateFor(site) {
     log(`正在解析 ${pending.length} 个 iframely 卡片链接…`);
 
     const resolved = [];
+    let ignoredExternal = 0;
     for (const wrap of pending) {
       const cloud = await resolveIframelyCloudUrl(wrap, signal);
       if (cloud) resolved.push({ from: wrap, to: cloud });
+      else if (cloud === null) ignoredExternal += 1;
       if (signal && signal.aborted) break;
       await sleepAbortable(Math.max(120, Math.floor(settings.requestDelay / 3)), signal);
     }
+    // Always drop unresolved iframely wrappers from the final link list.
+    const resolvedSet = new Set(resolved.map((item) => item.from));
+    entry.cloudLinks = (entry.cloudLinks || []).filter((link) => !(isIframelyUrl(link.url) && !resolvedSet.has(link.url)));
     if (!resolved.length) {
+      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => row.reason !== '卡片链接待解析');
+      if (ignoredExternal && ignoredExternal === pending.length) {
+        log(`已忽略 ${ignoredExternal} 个非网盘外链卡片`, 'ok');
+        return entry;
+      }
       log('卡片链接未能还原为真实网盘地址，已保留原始 iframely 链接', 'warn');
       return entry;
     }
@@ -3404,6 +3600,7 @@ function defaultTemplateFor(site) {
           code: link.code || '',
         };
       })
+      .filter((link) => !isIframelyUrl(link.url))
       .filter((link, index, arr) => arr.findIndex((other) => other.url === link.url) === index);
 
     for (const item of resolved) {
@@ -3421,7 +3618,7 @@ function defaultTemplateFor(site) {
     if (!unresolvedLeft) {
       entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => row.reason !== '卡片链接待解析');
     }
-    log(`已还原 ${resolved.length} 个卡片链接`, 'ok');
+    log(`已还原 ${resolved.length} 个网盘卡片${ignoredExternal ? `，忽略 ${ignoredExternal} 个非网盘外链` : ''}`, 'ok');
     return entry;
   }
 
@@ -3460,7 +3657,15 @@ function defaultTemplateFor(site) {
       for (const anchor of anchors) {
         const href = decodeHtmlEntities(anchor.getAttribute('href') || anchor.href || '').trim();
         if (!href || seen.has(href)) continue;
-        if (!(looksLikeCloudUrl(href) || isIframelyUrl(href))) continue;
+        // Only keep real cloud destinations from DOM; iframely wrappers are resolved separately.
+        if (!looksLikeCloudUrl(href) || isIframelyUrl(href)) continue;
+        // Prefer MEGA cards that expose the host label when present.
+        const card = anchor.closest('.iframely-card, .iframely-embed, [class*="Embed"], [class*="Card"]') || anchor.parentElement;
+        const twt = card && card.querySelector && card.querySelector('.twt');
+        if (twt) {
+          const label = String(twt.textContent || '').trim().toLowerCase();
+          if (label && !/mega\.nz|mega\.co\.nz|drive\.google|dropbox|onedrive|1drv\.ms|mediafire|gofile|pixeldrain|baidu|aliyun|alipan|lanzou|123pan|terabox/.test(label)) continue;
+        }
         seen.add(href);
         found.push(href);
       }
@@ -3505,14 +3710,22 @@ function defaultTemplateFor(site) {
     if (!pendingWraps.length) return entry;
     log(`正在解析 ${pendingWraps.length} 个 Fanbox 卡片链接…`);
     const resolved = [];
+    let ignoredExternal = 0;
     for (const wrap of pendingWraps) {
       const cloud = await resolveIframelyCloudUrl(wrap, signal);
       if (cloud) resolved.push({ from: wrap, to: cloud });
+      else if (cloud === null) ignoredExternal += 1;
       if (signal && signal.aborted) break;
       await sleepAbortable(Math.max(120, Math.floor(settings.requestDelay / 3)), signal);
     }
     if (!resolved.length) {
-      log('Fanbox 卡片链接未能还原为真实网盘地址', 'warn');
+      entry.cloudLinks = (entry.cloudLinks || []).filter((link) => !isIframelyUrl(link.url));
+      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/卡片链接待解析|未能提取链接|卡片类型无法提取链接/.test(String(row.reason || '')));
+      if (ignoredExternal && ignoredExternal === pendingWraps.length) {
+        log(`已忽略 ${ignoredExternal} 个非网盘外链卡片`, 'ok');
+        return entry;
+      }
+      log('Fanbox 网盘卡片未能还原为真实地址', 'warn');
       return entry;
     }
 
@@ -3532,7 +3745,7 @@ function defaultTemplateFor(site) {
       }
     }
     entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/卡片链接待解析|未能提取链接|卡片类型无法提取链接/.test(String(row.reason || '')));
-    log(`已还原 ${resolved.length} 个 Fanbox 卡片链接`, 'ok');
+    log(`已还原 ${resolved.length} 个 Fanbox 网盘卡片${ignoredExternal ? `，忽略 ${ignoredExternal} 个非网盘外链` : ''}`, 'ok');
     return entry;
   }
 
@@ -4345,8 +4558,8 @@ function defaultTemplateFor(site) {
   // ---------- Downloads ----------
 
   function startDownload() {
-    if (typeof GM_download !== 'function') {
-      log('当前脚本管理器不支持 GM_download，请使用 Tampermonkey。', 'bad');
+    if (!hasNativeDownload()) {
+      log('当前环境不支持下载接口，请使用 Tampermonkey 或 FanLoot 浏览器扩展。', 'bad');
       return;
     }
     if (state.crawling) return;
@@ -4402,6 +4615,18 @@ function defaultTemplateFor(site) {
       not_supported: '当前下载模式不支持此操作',
       not_succeeded: '下载未成功，链接可能已过期或网络中断',
       timeout: '下载超时',
+      USER_CANCELED: '用户已取消下载',
+      FILE_ACCESS_DENIED: '文件写入权限不足',
+      FILE_NO_SPACE: '磁盘空间不足',
+      FILE_NAME_TOO_LONG: '文件路径或名称过长',
+      FILE_FAILED: '本地文件保存失败',
+      NETWORK_FAILED: '网络连接失败',
+      NETWORK_TIMEOUT: '网络请求超时',
+      NETWORK_DISCONNECTED: '网络已断开',
+      SERVER_BAD_CONTENT: '服务器返回异常内容（链接可能已失效）',
+      SERVER_FORBIDDEN: '服务器拒绝访问（HTTP 403）',
+      SERVER_UNAUTHORIZED: '未授权或登录已过期（HTTP 401）',
+      SERVER_FAILED: '服务器响应失败',
     };
     const detail = error && error.details ? `（${typeof error.details === 'string' ? error.details : JSON.stringify(error.details)}）` : '';
     return `${hints[code] || code || '未知错误'}${detail}`;
@@ -4423,8 +4648,8 @@ function defaultTemplateFor(site) {
         state.history.add(item.key);
         saveHistory();
       } else {
-        const code = error && error.error;
-        const permanent = ['not_whitelisted', 'not_enabled', 'not_permitted', 'not_supported'].includes(code);
+      const code = error && error.error;
+      const permanent = ['not_whitelisted', 'not_enabled', 'not_permitted', 'not_supported', 'USER_CANCELED', 'FILE_ACCESS_DENIED', 'FILE_NO_SPACE', 'FILE_NAME_TOO_LONG'].includes(code);
         if (!permanent && task.attempts < 3 && dl.running) {
           dl.queue.push(task);
         } else {
@@ -4436,7 +4661,7 @@ function defaultTemplateFor(site) {
     };
 
     try {
-      active.handle = GM_download({
+      active.handle = startNativeDownload({
         url: (item.kind === 'text' || item.kind === 'link') ? textDataUrl(item.text) : item.url,
         name,
         saveAs: false,
@@ -4530,7 +4755,7 @@ function defaultTemplateFor(site) {
       border-radius: 18px; display: inline-grid; place-items: center; gap: 0;
       color: #fff; background: var(--ink);
       font: 900 28px/1 "Zen Kaku Gothic New", "Hiragino Sans", "Microsoft YaHei UI", sans-serif;
-      box-shadow: 5px 5px 0 var(--accent);
+      box-shadow: none;
       transition: transform .18s ease, box-shadow .18s ease, background .15s ease;
       overflow: visible;
       margin: 0 !important;
@@ -4539,8 +4764,14 @@ function defaultTemplateFor(site) {
     }
     .launcher:hover {
       transform: translateY(-2px);
-      box-shadow: 7px 7px 0 var(--accent);
+      box-shadow: none;
       background: #3a2830;
+    }
+    .theme-ready .launcher {
+      box-shadow: 5px 5px 0 var(--accent);
+    }
+    .theme-ready .launcher:hover {
+      box-shadow: 7px 7px 0 var(--accent);
     }
     .launcher-mark {
       display: block; pointer-events: none; user-select: none;
@@ -5000,9 +5231,9 @@ function defaultTemplateFor(site) {
     const root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `<style>${CSS}</style>${HTML}`;
     document.documentElement.appendChild(host);
-    applyTheme(PAGE_SITE);
     const $ = (id) => root.querySelector(`#${id}`);
     ui = { root, $ };
+    applyTheme(PAGE_SITE);
     ui.launcherAvoidTimer = 0;
     ui.launcherAvoidObserver = null;
     ui.launcherAvoidStarted = false;
@@ -5691,8 +5922,16 @@ function defaultTemplateFor(site) {
     }
   }
 
-  function init() {
+  async function init() {
     if (window.top !== window.self || document.getElementById('fanloot-downloader') || document.getElementById('fantia-fanbox-batch-downloader') || document.getElementById('fantia-batch-downloader')) return;
+    if (IS_EXT) {
+      await hydrateExtensionStorage();
+      settings = loadSettings();
+      const savedHistory = gmGet(HISTORY_KEY, []);
+      if (Array.isArray(savedHistory)) {
+        savedHistory.forEach((item) => state.history.add(item));
+      }
+    }
     mountUI();
     if (typeof GM_registerMenuCommand === 'function') GM_registerMenuCommand('打开 FanLoot', openPanel);
   }

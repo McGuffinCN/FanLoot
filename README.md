@@ -1,4 +1,4 @@
-# FanLoot | 全能赞助平台下载器
+# FanLoot
 
 批量下载 **Fantia / pixivFANBOX / Patreon / Pawchive** 作者投稿中的图片、视频、音频、附件与正文网盘链接。
 
