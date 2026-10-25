@@ -58,6 +58,211 @@
   const DAY = 24 * 60 * 60 * 1000;
   const CACHE_TTL = 20 * 60 * 1000;
 
+  function detectUiLang() {
+    const candidates = [];
+    try {
+      // Prefer the browser UI language for extensions; this matches Edge/Chrome display language.
+      if (typeof chrome !== 'undefined' && chrome.i18n && typeof chrome.i18n.getUILanguage === 'function') {
+        candidates.push(chrome.i18n.getUILanguage());
+      }
+    } catch (_) { /* ignore */ }
+    try {
+      if (typeof navigator !== 'undefined') {
+        if (navigator.language) candidates.push(navigator.language);
+        if (Array.isArray(navigator.languages) && navigator.languages.length) candidates.push(navigator.languages[0]);
+      }
+    } catch (_) { /* ignore */ }
+
+    // Only the primary language decides UI language.
+    // Scanning the full preferred-languages list would keep Chinese forever for bilingual users
+    // (for example navigator.languages = ['en-US', 'zh-CN']).
+    for (const raw of candidates) {
+      const lang = String(raw || '').trim().toLowerCase().replace(/_/g, '-');
+      if (!lang) continue;
+      if (lang === 'zh' || lang.startsWith('zh-')) return 'zh';
+      return 'en';
+    }
+    return 'zh';
+  }
+
+  const UI_LANG = detectUiLang();
+  const IS_EN = UI_LANG === 'en';
+
+  const I18N = {
+    zh: {
+      type_image: '图片', type_video: '视频', type_audio: '音频', type_file: '附件', type_cover: '封面', type_text: '正文', type_link: '链接',
+      var_user: '作者名称', var_date: '投稿日期', var_title: '投稿标题', var_post_id: '投稿 ID', var_index: '投稿内序号', var_name: '原文件名', var_plan: '订阅方案', var_price: '方案月费', var_type: '文件类型', var_fanclub: '粉丝团名称', var_fanclub_id: '粉丝团 ID', var_year: '年', var_month: '月', var_day: '日', var_time: '时间 HH-mm', var_content_title: '内容区块标题', var_content_id: '内容区块 ID', var_page: '区块内序号', var_tags: '标签', var_ext: '扩展名',
+      public: '公开', free: '免费', plan_n: '方案 {id}', fee_above: '{fee}円以上', fee_jpy: '{fee}円', all_paid_patrons: '所有付费赞助者', patron_content: '赞助内容', rule_n: '规则 {id}', free_plan_chip: '公开内容（无方案限制）', free_content: '公开内容', collection_none: '未合集', collection_n: '合集 {id}', untitled: '无标题',
+      cloud_generic: '网盘', baidu: '百度网盘', aliyun: '阿里云盘', lanzou: '蓝奏云', pan123: '123云盘', pan115: '115网盘', ctfile: '城通网盘', cloud189: '天翼云盘',
+      unresolved_pending: '卡片链接待解析', unresolved_failed: '未能提取链接', unresolved_card_type: '卡片类型无法提取链接',
+      open_panel: '打开 FanLoot', launcher_title: '使用 FanLoot 抓取', close: '关闭', subtitle_default: '打开 Fantia / Fanbox / Patreon / Pawchive 作者主页或投稿页即可开始',
+      tab_crawl: '① 抓取筛选', tab_download: '② 文件名与下载', tab_more: '更多',
+      label_target: '抓取目标', label_target_small: '作者 / 投稿', ph_target: 'Fantia / Fanbox / Patreon / Pawchive 作者主页或投稿链接', hint_target: '支持 Fantia / Fanbox / Patreon / Pawchive 作者主页、投稿链接，以及 Patreon 合集链接。', scope_all: '该作者全部投稿', scope_one: '仅当前投稿',
+      label_date: '投稿日期', label_date_small: 'JST，含起止日', to: '至', aria_from: '开始日期', aria_to: '结束日期', quick_30: '近 30 天', quick_90: '近 90 天', quick_year: '今年', quick_clear: '不限', hint_date_single: '已选择“仅当前投稿”，不按投稿日期筛选。',
+      label_keyword: '标题关键词', optional: '可选', ph_include: '包含任一关键词', ph_exclude: '排除关键词',
+      label_plans: '限定方案', label_plans_small: '内容区块', plans_all: '全选方案', plans_none: '全不选', hint_plans: '只能下载你当前账号已解锁的内容；未解锁内容会单独计数。',
+      label_collections: '限定合集', collections_all: '全选合集', collections_none: '全不选', hint_collections: '可按合集筛选投稿；未归入任何合集的投稿对应“未合集”。',
+      label_types: '文件类型', label_delay: '请求间隔', hint_delay: '毫秒。作品很多时建议 600 以上，降低被限流概率。',
+      btn_crawl: '开始抓取', btn_crawl_stop: '停止抓取', btn_next: '下一步',
+      label_template: '文件名规则', label_template_small: '用 / 建文件夹', hint_template: '点击变量可插入到光标处。未使用 {ext} 时会自动补扩展名；路径相对于浏览器默认下载目录。',
+      label_date_format: '日期格式', label_date_format_small: '用于 {date}', hint_date_format: '可用 YYYY、YY、MM、DD、HH、mm、ss，例如 YYYYMMDD 或 YYYY-MM-DD_HH-mm。',
+      label_preview: '命名预览', label_dl_settings: '下载设置', concurrent: '同时下载', skip_downloaded: '跳过已下载过的文件',
+      btn_download: '开始下载', btn_pause: '暂停', btn_resume: '继续', btn_stop: '停止', btn_retry: '重试失败', btn_clear_history: '清除记录', dl_not_started: '尚未开始下载',
+      label_export: '导出', btn_copy: '复制当前筛选结果的链接', hint_copy: '每行格式：URL + Tab + 预计保存路径。Fantia / Fanbox / Patreon / Pawchive 的直链都可能有时效，Fantia / Fanbox / Patreon 通常还需要保持登录状态。',
+      label_history: '下载记录', hint_history: '记录用于“跳过已下载过的文件”，按 投稿 ID + 文件 ID 识别。', label_tips: '使用提示',
+      tip1: '推荐 <b>Tampermonkey</b>。如需按文件夹保存，请在 Tampermonkey 设置的“下载 BETA”中选择 <b>浏览器 API</b>。',
+      tip2: '视频或压缩包下载失败并提示白名单时，请在“下载 BETA → 白名单扩展名”中添加对应扩展名，或使用 <b>/.*/</b>。',
+      tip3: '浏览器若每个文件都弹出“另存为”，请关闭浏览器设置中的“下载前询问每个文件的保存位置”。',
+      tip4: '请在对应网站打开本面板后再抓取：Fantia、Fanbox、Patreon、Pawchive 互相不能跨站代抓。',
+      tip5: 'Fantia / Fanbox / Patreon 的下载链接常有时效，失败较多时请重新抓取；Pawchive 多为站点直链，一般更稳定。',
+      tip6: 'Patreon 支持按订阅方案与合集筛选；Fanbox / Fantia 主要按订阅方案筛选；Pawchive 无方案概念，按页面可见内容抓取。',
+      tip7: '正文/卡片里的网盘链接可汇总导出。Fanbox 与 Pawchive 的 iframely 卡片会尽量自动还原为真实网盘地址。',
+      status_ready: '准备就绪', empty_crawling: '正在抓取…', empty_idle: '设置筛选条件后点击“开始抓取”。',
+      summary_posts: '投稿 / 已读取 {n}', summary_files: '待下载文件', summary_size: '已知大小',
+      notice_locked: '有 {n} 个所选方案的内容区块尚未解锁，已跳过。', notice_stream: '有 {n} 个内容只有在线播放，没有下载地址。', notice_links: '已提取 {n} 条网盘链接，将汇总到一个文本文件。',
+      preview_sample: '示例', preview_sample_hint: '抓取后将显示真实文件名', preview_more: '另有 {n} 个文件',
+      progress_meta: '完成 {done} · 失败 {failed} · 跳过 {skipped} · 等待 {queued}', progress_paused: ' · 已暂停', waiting_response: '等待响应',
+      status_paused: '已暂停', status_downloading: '下载中', history_count: '已记录 {n} 个文件',
+      identifying: '正在识别目标…', recognized: '已识别：{site} · {name}（{id}）', collections_count: ' · {n} 个合集', owner_sub: '{site} · {name} · {plans} 个订阅方案{collections}',
+      reading_plans: '正在读取订阅方案…', paw_no_plans: 'Pawchive 无订阅方案筛选', reading_collections: '正在读取合集…', no_collections: '未找到合集（可打开作者合集页后再试）',
+      unknown_error: '未知错误',
+      err_not_whitelisted: '扩展名未加入 Tampermonkey 下载白名单', err_not_enabled: 'Tampermonkey 未启用下载功能', err_not_permitted: '浏览器未授予下载权限', err_not_supported: '当前下载模式不支持此操作', err_not_succeeded: '下载未成功，链接可能已过期或网络中断', err_timeout: '下载超时', err_user_canceled: '用户已取消下载', err_file_access: '文件写入权限不足', err_no_space: '磁盘空间不足', err_name_long: '文件路径或名称过长', err_file_failed: '本地文件保存失败', err_network_failed: '网络连接失败', err_network_timeout: '网络请求超时', err_network_disconnected: '网络已断开', err_server_bad: '服务器返回异常内容（链接可能已失效）', err_server_forbidden: '服务器拒绝访问（HTTP 403）', err_server_unauthorized: '未授权或登录已过期（HTTP 401）', err_server_failed: '服务器响应失败',
+      msg_no_download_api: '当前环境不支持下载接口，请使用 Tampermonkey 或 FanLoot 浏览器扩展。',
+      msg_no_files: '没有可下载的文件，请先抓取或调整筛选条件。',
+      msg_start_download: '开始下载 {n} 个文件',
+      msg_skip_downloaded: '，跳过 {n} 个已下载文件',
+      msg_download_end: '下载结束：成功 {done}，失败 {failed}，跳过 {skipped}，用时 {seconds} 秒。',
+      msg_download_end_fail: '下载结束，有 {n} 个失败',
+      msg_download_all_done: '全部下载完成',
+      msg_download_fail_item: '下载失败：{name} — {reason}',
+      msg_paused: '已暂停：正在进行的文件会继续完成。',
+      msg_resumed: '继续下载。',
+      msg_stopped: '下载已停止。',
+      msg_status_stopped: '下载已停止',
+      msg_retry: '重试 {n} 个失败文件。若仍失败，请重新抓取以刷新下载链接。',
+      msg_no_history: '当前没有可清除的下载记录。',
+      msg_confirm_clear_history: '确定清除 {n} 条下载记录吗？',
+      msg_history_cleared: '下载记录已清除。',
+      msg_no_copy: '没有可复制的链接。',
+      msg_copied: '已复制 {n} 条链接。',
+      msg_copy_fail: '复制失败：{error}',
+      msg_need_target: '请输入当前 {site} 的作者主页或投稿链接。',
+      msg_cross_site: '当前页面是 {page}，但目标是 {target}。已清空跨站目标，请填写当前站点链接后再抓取。',
+      msg_crawl_one: '抓取单个{site}投稿 #{id}',
+      msg_crawl_list: '开始读取 {site} 作者 {owner} 的投稿列表',
+      msg_list_page: '投稿列表第 {page} 页，已发现 {total} 个投稿',
+      msg_collection_fallback: '列表未带合集关系，改用合集 {id} 的 {n} 个投稿 ID',
+      msg_collection_filter: '已按合集 {id} 预筛：{before} → {after}',
+      msg_found_posts: '发现 {total} 个投稿',
+      msg_preskip: '，按日期/合集预先跳过 {n} 个',
+      msg_reading_post: '正在读取投稿 {i}/{total}（#{id}）',
+      msg_post_fail: '投稿 #{id} 读取失败：{error}',
+      msg_crawl_stopped: '抓取已停止，已保留当前结果。',
+      msg_crawl_done: '抓取完成：{posts} 个投稿，{files} 个文件。',
+      msg_crawl_locked: '有 {n} 个所选方案内容尚未解锁（未订阅或订阅等级不足），已跳过。',
+      msg_crawl_stream: '有 {n} 个内容只提供在线播放，没有下载地址。',
+      msg_crawl_fail: '抓取失败：{error}',
+      msg_ready_files: '已就绪：{n} 个文件',
+      msg_no_downloadable: '没有可下载的文件',
+      msg_busy_http: '请求过快或服务器繁忙（HTTP {status}），{seconds} 秒后重试…',
+      msg_busy_http_site: '{site} 请求过快或服务器繁忙（HTTP {status}），{seconds} 秒后重试…',
+      msg_temp_unrecognized: '暂时无法识别目标：{error}',
+      msg_auto_plans: '已自动勾选已解锁方案：{labels}',
+    },
+    en: {
+      type_image: 'Images', type_video: 'Videos', type_audio: 'Audio', type_file: 'Attachments', type_cover: 'Covers', type_text: 'Post text', type_link: 'Links',
+      var_user: 'Creator', var_date: 'Post date', var_title: 'Post title', var_post_id: 'Post ID', var_index: 'Index in post', var_name: 'Original filename', var_plan: 'Membership plan', var_price: 'Plan price', var_type: 'File type', var_fanclub: 'Fanclub name', var_fanclub_id: 'Fanclub ID', var_year: 'Year', var_month: 'Month', var_day: 'Day', var_time: 'Time HH-mm', var_content_title: 'Content block title', var_content_id: 'Content block ID', var_page: 'Index in block', var_tags: 'Tags', var_ext: 'Extension',
+      public: 'Public', free: 'Free', plan_n: 'Plan {id}', fee_above: '{fee} JPY+', fee_jpy: '{fee} JPY', all_paid_patrons: 'All paid patrons', patron_content: 'Patron content', rule_n: 'Rule {id}', free_plan_chip: 'Public content (no plan limit)', free_content: 'Public content', collection_none: 'Uncollected', collection_n: 'Collection {id}', untitled: 'Untitled',
+      cloud_generic: 'Cloud drive', baidu: 'Baidu Drive', aliyun: 'Aliyun Drive', lanzou: 'Lanzou Cloud', pan123: '123 Cloud', pan115: '115 Cloud', ctfile: 'CTFile', cloud189: 'Cloud189',
+      unresolved_pending: 'Card link pending resolve', unresolved_failed: 'Failed to extract link', unresolved_card_type: 'Card type cannot extract link',
+      open_panel: 'Open FanLoot', launcher_title: 'Crawl with FanLoot', close: 'Close', subtitle_default: 'Open a Fantia / Fanbox / Patreon / Pawchive creator or post page to start',
+      tab_crawl: '1. Crawl & Filter', tab_download: '2. Names & Download', tab_more: 'More',
+      label_target: 'Target', label_target_small: 'Creator / post', ph_target: 'Fantia / Fanbox / Patreon / Pawchive creator or post URL', hint_target: 'Supports Fantia / Fanbox / Patreon / Pawchive creator pages, post URLs, and Patreon collection URLs.', scope_all: 'All posts by creator', scope_one: 'Current post only',
+      label_date: 'Post date', label_date_small: 'JST, inclusive', to: 'to', aria_from: 'Start date', aria_to: 'End date', quick_30: 'Last 30 days', quick_90: 'Last 90 days', quick_year: 'This year', quick_clear: 'Any', hint_date_single: '“Current post only” is selected, so date filters are disabled.',
+      label_keyword: 'Title keywords', optional: 'Optional', ph_include: 'Include any keyword', ph_exclude: 'Exclude keywords',
+      label_plans: 'Plans', label_plans_small: 'Content blocks', plans_all: 'Select all', plans_none: 'Select none', hint_plans: 'Only content unlocked by your account can be downloaded; locked content is counted separately.',
+      label_collections: 'Collections', collections_all: 'Select all', collections_none: 'Select none', hint_collections: 'Filter posts by collection; posts outside any collection map to “Uncollected”.',
+      label_types: 'File types', label_delay: 'Request interval', hint_delay: 'ms. For large libraries, use 600+ to reduce rate limiting.',
+      btn_crawl: 'Start crawl', btn_crawl_stop: 'Stop crawl', btn_next: 'Next',
+      label_template: 'Filename pattern', label_template_small: 'Use / for folders', hint_template: 'Click a variable to insert it. If {ext} is omitted, the extension is added automatically. Paths are under the browser downloads folder.',
+      label_date_format: 'Date format', label_date_format_small: 'For {date}', hint_date_format: 'Supports YYYY, YY, MM, DD, HH, mm, ss — e.g. YYYYMMDD or YYYY-MM-DD_HH-mm.',
+      label_preview: 'Name preview', label_dl_settings: 'Download settings', concurrent: 'Concurrent', skip_downloaded: 'Skip already downloaded files',
+      btn_download: 'Start download', btn_pause: 'Pause', btn_resume: 'Resume', btn_stop: 'Stop', btn_retry: 'Retry failed', btn_clear_history: 'Clear history', dl_not_started: 'Download has not started',
+      label_export: 'Export', btn_copy: 'Copy filtered links', hint_copy: 'One line per file: URL + Tab + expected save path. Direct links may expire; Fantia / Fanbox / Patreon usually also require an active login.',
+      label_history: 'Download history', hint_history: 'Used by “Skip already downloaded files”, keyed by post ID + file ID.', label_tips: 'Tips',
+      tip1: 'Recommended: <b>Tampermonkey</b>. To keep folder structure, set Download BETA → mode to <b>Browser API</b>.',
+      tip2: 'If videos/archives fail with a whitelist error, add the extension under Download BETA → Whitelisted extensions, or use <b>/.*/</b>.',
+      tip3: 'If the browser asks where to save every file, disable “Ask where to save each file before downloading”.',
+      tip4: 'Open this panel on the matching site first. Fantia, Fanbox, Patreon, and Pawchive cannot crawl each other.',
+      tip5: 'Fantia / Fanbox / Patreon download URLs often expire — re-crawl if many fail. Pawchive usually has more stable direct links.',
+      tip6: 'Patreon supports plan + collection filters; Fanbox / Fantia mainly use plan filters; Pawchive has no plan concept and crawls visible page content.',
+      tip7: 'Cloud-drive links in post text/cards can be exported. Fanbox and Pawchive iframely cards are resolved to real URLs when possible.',
+      status_ready: 'Ready', empty_crawling: 'Crawling…', empty_idle: 'Set filters, then click “Start crawl”.',
+      summary_posts: 'Posts / read {n}', summary_files: 'Files to download', summary_size: 'Known size',
+      notice_locked: '{n} selected plan content blocks are still locked and were skipped.', notice_stream: '{n} items are stream-only with no download URL.', notice_links: 'Extracted {n} cloud links; they will be saved into one text file.',
+      preview_sample: 'Sample', preview_sample_hint: 'Real filenames appear after crawling', preview_more: '{n} more files',
+      progress_meta: 'Done {done} · Failed {failed} · Skipped {skipped} · Queued {queued}', progress_paused: ' · paused', waiting_response: 'Waiting',
+      status_paused: 'Paused', status_downloading: 'Downloading', history_count: '{n} files recorded',
+      identifying: 'Identifying target…', recognized: 'Recognized: {site} · {name} ({id})', collections_count: ' · {n} collections', owner_sub: '{site} · {name} · {plans} plans{collections}',
+      reading_plans: 'Loading membership plans…', paw_no_plans: 'Pawchive has no plan filter', reading_collections: 'Loading collections…', no_collections: 'No collections found (open the creator collections page and retry)',
+      unknown_error: 'Unknown error',
+      err_not_whitelisted: 'Extension is not on the Tampermonkey download whitelist', err_not_enabled: 'Tampermonkey downloads are disabled', err_not_permitted: 'Browser download permission was not granted', err_not_supported: 'Current download mode does not support this action', err_not_succeeded: 'Download failed; the link may have expired or the network dropped', err_timeout: 'Download timed out', err_user_canceled: 'Download canceled by user', err_file_access: 'File write permission denied', err_no_space: 'Not enough disk space', err_name_long: 'File path or name is too long', err_file_failed: 'Failed to save the local file', err_network_failed: 'Network connection failed', err_network_timeout: 'Network request timed out', err_network_disconnected: 'Network disconnected', err_server_bad: 'Server returned unexpected content (link may be invalid)', err_server_forbidden: 'Server forbidden (HTTP 403)', err_server_unauthorized: 'Unauthorized or login expired (HTTP 401)', err_server_failed: 'Server response failed',
+      msg_no_download_api: 'Downloads are unavailable here. Use Tampermonkey or the FanLoot browser extension.',
+      msg_no_files: 'No downloadable files. Crawl first or adjust filters.',
+      msg_start_download: 'Starting download of {n} files',
+      msg_skip_downloaded: ', skipped {n} already downloaded',
+      msg_download_end: 'Download finished: {done} succeeded, {failed} failed, {skipped} skipped, {seconds}s elapsed.',
+      msg_download_end_fail: 'Download finished with {n} failures',
+      msg_download_all_done: 'All downloads completed',
+      msg_download_fail_item: 'Download failed: {name} — {reason}',
+      msg_paused: 'Paused: in-flight files will still finish.',
+      msg_resumed: 'Resuming downloads.',
+      msg_stopped: 'Download stopped.',
+      msg_status_stopped: 'Download stopped',
+      msg_retry: 'Retrying {n} failed files. If they fail again, re-crawl to refresh links.',
+      msg_no_history: 'There is no download history to clear.',
+      msg_confirm_clear_history: 'Clear {n} download history records?',
+      msg_history_cleared: 'Download history cleared.',
+      msg_no_copy: 'No links to copy.',
+      msg_copied: 'Copied {n} links.',
+      msg_copy_fail: 'Copy failed: {error}',
+      msg_need_target: 'Enter a {site} creator or post URL for the current site.',
+      msg_cross_site: 'This page is {page}, but the target is {target}. Cleared the cross-site target; enter a URL for the current site before crawling.',
+      msg_crawl_one: 'Crawling one {site} post #{id}',
+      msg_crawl_list: 'Reading {site} posts for {owner}',
+      msg_list_page: 'Post list page {page}, found {total} posts',
+      msg_collection_fallback: 'List lacked collection relations; using {n} post IDs from collection {id}',
+      msg_collection_filter: 'Filtered by collection {id}: {before} → {after}',
+      msg_found_posts: 'Found {total} posts',
+      msg_preskip: ', pre-skipped {n} by date/collection',
+      msg_reading_post: 'Reading post {i}/{total} (#{id})',
+      msg_post_fail: 'Failed to read post #{id}: {error}',
+      msg_crawl_stopped: 'Crawl stopped; keeping current results.',
+      msg_crawl_done: 'Crawl finished: {posts} posts, {files} files.',
+      msg_crawl_locked: '{n} selected plan items are still locked and were skipped.',
+      msg_crawl_stream: '{n} items are stream-only with no download URL.',
+      msg_crawl_fail: 'Crawl failed: {error}',
+      msg_ready_files: 'Ready: {n} files',
+      msg_no_downloadable: 'No downloadable files',
+      msg_busy_http: 'Too many requests or server busy (HTTP {status}); retrying in {seconds}s…',
+      msg_busy_http_site: '{site} is busy or rate-limited (HTTP {status}); retrying in {seconds}s…',
+      msg_temp_unrecognized: 'Could not identify target: {error}',
+      msg_auto_plans: 'Auto-selected unlocked plans: {labels}',
+    },
+  };
+
+  function t(key, vars) {
+    const table = (I18N[UI_LANG] || I18N.zh);
+    let text = (table && table[key]) || (I18N.zh && I18N.zh[key]) || key;
+    if (vars && typeof vars === 'object') {
+      text = String(text).replace(/\{([a-zA-Z0-9_]+)\}/g, (whole, name) => (
+        Object.prototype.hasOwnProperty.call(vars, name) ? String(vars[name]) : whole
+      ));
+    }
+    return text;
+  }
+
+
   function detectSite(input) {
     const value = String(input || (typeof location !== 'undefined' ? location.href : '') || '').trim();
     if (!value) return 'fantia';
@@ -137,15 +342,18 @@ function defaultTemplateFor(site) {
   const PAGE_SITE = detectSite(typeof location !== 'undefined' ? location.href : '');
   const ORIGIN = siteOrigin(PAGE_SITE);
 
-  const TYPE_LABELS = {
-    image: '图片',
-    video: '视频',
-    audio: '音频',
-    file: '附件',
-    cover: '封面',
-    text: '正文',
-    link: '链接',
-  };
+  function typeLabels() {
+    return {
+      image: t('type_image'),
+      video: t('type_video'),
+      audio: t('type_audio'),
+      file: t('type_file'),
+      cover: t('type_cover'),
+      text: t('type_text'),
+      link: t('type_link'),
+    };
+  }
+  const TYPE_LABELS = typeLabels();
   const TYPE_ORDER = ['image', 'video', 'audio', 'file', 'link', 'cover', 'text'];
   const EXT_GROUPS = {
     image: ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'bmp', 'avif', 'heic', 'heif', 'tif', 'tiff'],
@@ -153,28 +361,31 @@ function defaultTemplateFor(site) {
     audio: ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'wma', 'aif', 'aiff', 'alac'],
   };
 
-  const VARIABLES = [
-    ['{user}', '作者名称'],
-    ['{date}', '投稿日期'],
-    ['{title}', '投稿标题'],
-    ['{post_id}', '投稿 ID'],
-    ['{index}', '投稿内序号'],
-    ['{name}', '原文件名'],
-    ['{plan}', '订阅方案'],
-    ['{price}', '方案月费'],
-    ['{type}', '文件类型'],
-    ['{fanclub}', '粉丝团名称'],
-    ['{fanclub_id}', '粉丝团 ID'],
-    ['{year}', '年'],
-    ['{month}', '月'],
-    ['{day}', '日'],
-    ['{time}', '时间 HH-mm'],
-    ['{content_title}', '内容区块标题'],
-    ['{content_id}', '内容区块 ID'],
-    ['{page}', '区块内序号'],
-    ['{tags}', '标签'],
-    ['{ext}', '扩展名'],
-  ];
+  function variableDefs() {
+    return [
+      ['{user}', t('var_user')],
+      ['{date}', t('var_date')],
+      ['{title}', t('var_title')],
+      ['{post_id}', t('var_post_id')],
+      ['{index}', t('var_index')],
+      ['{name}', t('var_name')],
+      ['{plan}', t('var_plan')],
+      ['{price}', t('var_price')],
+      ['{type}', t('var_type')],
+      ['{fanclub}', t('var_fanclub')],
+      ['{fanclub_id}', t('var_fanclub_id')],
+      ['{year}', t('var_year')],
+      ['{month}', t('var_month')],
+      ['{day}', t('var_day')],
+      ['{time}', t('var_time')],
+      ['{content_title}', t('var_content_title')],
+      ['{content_id}', t('var_content_id')],
+      ['{page}', t('var_page')],
+      ['{tags}', t('var_tags')],
+      ['{ext}', t('var_ext')],
+    ];
+  }
+  const VARIABLES = variableDefs();
 
   const DEFAULT_SETTINGS = {
     target: '',
@@ -566,7 +777,7 @@ function defaultTemplateFor(site) {
       month: parts ? pad(parts.M) : '',
       day: parts ? pad(parts.D) : '',
       time: parts ? `${pad(parts.h)}-${pad(parts.m)}` : '',
-      plan: item.plan ? item.plan.name : (postLevel ? '' : (item.post && item.post.site === 'fanbox' ? '公开' : '公开')),
+      plan: item.plan ? item.plan.name : (postLevel ? '' : t('public')),
       price: item.plan ? item.plan.price : 0,
       content_id: item.contentId || '',
       content_title: item.contentTitle || '',
@@ -574,7 +785,7 @@ function defaultTemplateFor(site) {
       page: pad(item.page || 1, 2),
       name: item.name || 'file',
       ext: item.ext || '',
-      type: TYPE_LABELS[item.kind] || item.kind,
+      type: typeLabels()[item.kind] || TYPE_LABELS[item.kind] || item.kind,
     };
   }
 
@@ -597,7 +808,7 @@ function defaultTemplateFor(site) {
     if (!plan || plan.id == null) return null;
     return {
       id: String(plan.id),
-      name: plan.name || `方案 ${plan.id}`,
+      name: plan.name || t('plan_n', { id: plan.id }),
       price: plan.price ?? plan.fee ?? '',
     };
   }
@@ -607,7 +818,7 @@ function defaultTemplateFor(site) {
     if (fee <= 0) return null;
     return {
       id: `fee:${fee}`,
-      name: `${fee.toLocaleString()}円以上`,
+      name: t('fee_above', { fee: fee.toLocaleString() }),
       price: fee,
     };
   }
@@ -935,7 +1146,7 @@ function defaultTemplateFor(site) {
         textParts.push(href);
         if (/iframely\.net\//i.test(href)) {
           // Keep raw wrapper for later async resolve; also mark until resolved.
-          noteUnresolvedLinkPost(entry, '卡片链接待解析');
+          noteUnresolvedLinkPost(entry, t('unresolved_pending'));
         }
       }
       for (const iframe of Array.from(contentRoot.querySelectorAll('iframe[src]'))) {
@@ -947,7 +1158,7 @@ function defaultTemplateFor(site) {
       for (const url of extractUrlsFromText(rawHtml)) {
         if (/iframely\.net\/|iframe\.ly\//i.test(url)) {
           textParts.push(url);
-          noteUnresolvedLinkPost(entry, '卡片链接待解析');
+          noteUnresolvedLinkPost(entry, t('unresolved_pending'));
         } else if (looksLikeCloudUrl(url)) {
           textParts.push(url);
         }
@@ -1240,18 +1451,18 @@ function defaultTemplateFor(site) {
       });
     }
     if (type === 'patrons' || type === 'members' || type === 'all_patrons') {
-      return normalizePlan({ id: PATREONS_PLAN_KEY, name: '所有付费赞助者', price: '' });
+      return normalizePlan({ id: PATREONS_PLAN_KEY, name: t('all_paid_patrons'), price: '' });
     }
     if (attrs.amount_cents != null) {
       const cents = Number(attrs.amount_cents) || 0;
       return normalizePlan({
         id: `cents:${cents}`,
-        name: cents > 0 ? `$${ (cents / 100).toFixed(2) }+` : '赞助内容',
+        name: cents > 0 ? `$${ (cents / 100).toFixed(2) }+` : t('patron_content'),
         price: cents / 100,
       });
     }
     if (rule.id != null) {
-      return normalizePlan({ id: String(rule.id), name: attrs.title || `规则 ${rule.id}`, price: '' });
+      return normalizePlan({ id: String(rule.id), name: attrs.title || t('rule_n', { id: rule.id }), price: '' });
     }
     return null;
   }
@@ -1556,25 +1767,25 @@ function defaultTemplateFor(site) {
 
   function cloudProviderLabel(url) {
     const value = String(url || '').toLowerCase();
-    if (value.includes('baidu.com')) return '百度网盘';
+    if (value.includes('baidu.com')) return t('baidu');
     if (value.includes('mega.nz') || value.includes('mega.co.nz')) return 'MEGA';
     if (value.includes('drive.google.com') || value.includes('docs.google.com') || value.includes('googleapis.com/drive')) return 'Google Drive';
     if (value.includes('dropbox.com') || value.includes('dropboxusercontent.com')) return 'Dropbox';
     if (value.includes('onedrive.live.com') || value.includes('1drv.ms') || value.includes('sharepoint.com')) return 'OneDrive';
     if (value.includes('mediafire.com')) return 'MediaFire';
-    if (value.includes('aliyundrive.com') || value.includes('alipan.com')) return '阿里云盘';
-    if (value.includes('lanzou')) return '蓝奏云';
-    if (value.includes('123pan.com')) return '123云盘';
-    if (value.includes('115.com')) return '115网盘';
-    if (value.includes('ctfile.com')) return '城通网盘';
-    if (value.includes('cloud.189.cn')) return '天翼云盘';
+    if (value.includes('aliyundrive.com') || value.includes('alipan.com')) return t('aliyun');
+    if (value.includes('lanzou')) return t('lanzou');
+    if (value.includes('123pan.com')) return t('pan123');
+    if (value.includes('115.com')) return t('pan115');
+    if (value.includes('ctfile.com')) return t('ctfile');
+    if (value.includes('cloud.189.cn')) return t('cloud189');
     if (value.includes('terabox.com') || value.includes('1024tera.com')) return 'Terabox';
     if (value.includes('gofile.io')) return 'Gofile';
     if (value.includes('pixeldrain.com')) return 'Pixeldrain';
     try {
-      return new URL(url).hostname.replace(/^www\./i, '') || '网盘';
+      return new URL(url).hostname.replace(/^www\./i, '') || t('cloud_generic');
     } catch (_) {
-      return '网盘';
+      return t('cloud_generic');
     }
   }
 
@@ -1650,7 +1861,7 @@ function defaultTemplateFor(site) {
       id: entry.meta.id,
       title: entry.meta.title || '',
       url,
-      reason: reason || '未能提取链接',
+      reason: reason || t('unresolved_failed'),
     });
   }
 
@@ -1719,7 +1930,7 @@ function defaultTemplateFor(site) {
 
     if (!links.length && !unresolved.length) return null;
 
-    const lines = ['# FanLoot 链接汇总', ''];
+    const lines = [IS_EN ? '# FanLoot link summary' : '# FanLoot 链接汇总', ''];
     if (links.length) {
       lines.push(`## 已提取链接（${links.length}）`, '');
       links.forEach((link, index) => {
@@ -1747,7 +1958,7 @@ function defaultTemplateFor(site) {
       unresolved.forEach((item, index) => {
         lines.push(`${index + 1}. ${item.title || item.id}`);
         lines.push(`投稿：${item.url}`);
-        lines.push(`原因：${item.reason || '未能提取链接'}`);
+        lines.push(`${IS_EN ? 'Reason' : '原因'}：${item.reason || t('unresolved_failed')}`);
         lines.push('');
       });
     } else {
@@ -1818,7 +2029,7 @@ function defaultTemplateFor(site) {
         continue;
       }
 
-      const sectionTitle = `${content.title || '无标题'}${plan ? ` [${plan.name}]` : ''}`;
+      const sectionTitle = `${content.title || t('untitled')}${plan ? ` [${plan.name}]` : ''}`;
       if (content.category === 'photo_gallery') {
         (content.post_content_photos || []).forEach((photo, i) => {
           const urls = photo.url || {};
@@ -1985,11 +2196,11 @@ function defaultTemplateFor(site) {
           } else if (wraps.length) {
             // API often only keeps iframely wrappers; resolve them later / via page DOM.
             lines.push(...wraps);
-            noteUnresolvedLinkPost(entry, '卡片链接待解析');
+            noteUnresolvedLinkPost(entry, t('unresolved_pending'));
             added = true;
           }
           if (!added) {
-            noteUnresolvedLinkPost(entry, '未能提取链接');
+            noteUnresolvedLinkPost(entry, t('unresolved_failed'));
             if (embed.host) lines.push(String(embed.host));
           }
         }
@@ -2337,7 +2548,7 @@ function defaultTemplateFor(site) {
     }
 
     if ((response.status === 429 || response.status >= 500) && attempt < 4) {
-      log(`Patreon 请求过快或服务器繁忙（HTTP ${response.status}），${4 * attempt} 秒后重试…`, 'warn');
+      log(t('msg_busy_http_site', { site: 'Patreon', status: response.status, seconds: 4 * attempt }), 'warn');
       await sleepAbortable(4000 * attempt, options.signal);
       return requestPatreon(pathOrUrl, options, attempt + 1);
     }
@@ -2377,7 +2588,7 @@ function defaultTemplateFor(site) {
       : ((state.collections.get(id) && state.collections.get(id).postIds) || []);
     const item = {
       id,
-      title: attrs.title || `合集 ${id}`,
+      title: attrs.title || t('collection_n', { id }),
       url: attrs.url || `${PATREON_ORIGIN}/collection/${id}`,
       postIds,
       numPosts: Number(attrs.num_posts != null ? attrs.num_posts : postIds.length) || postIds.length,
@@ -2681,7 +2892,7 @@ function defaultTemplateFor(site) {
       const title = (typeof header.title === 'string' ? header.title : '')
         || (header.title && header.title.text)
         || attrs.title
-        || `合集 ${id}`;
+        || t('collection_n', { id });
       const item = rememberPatreonCollection({
         id,
         type: 'collection',
@@ -2731,7 +2942,7 @@ function defaultTemplateFor(site) {
         const match = href.match(/\/collection\/(\d+)/i);
         if (!match) continue;
         const id = String(match[1]);
-        const title = String(a.textContent || '').replace(/\s+/g, ' ').trim() || `合集 ${id}`;
+        const title = String(a.textContent || '').replace(/\s+/g, ' ').trim() || t('collection_n', { id });
         const item = rememberPatreonCollection({
           id,
           type: 'collection',
@@ -2754,7 +2965,7 @@ function defaultTemplateFor(site) {
     state.collections = new Map();
     state.collectionPostMap = new Map();
     state.collectionsFor = ownerKey;
-    renderCollections('正在读取合集…');
+    renderCollections(t('reading_collections'));
 
     const ingestPayload = (payload) => {
       const rows = Array.isArray(payload && payload.data)
@@ -2904,7 +3115,7 @@ function defaultTemplateFor(site) {
 
     if (!state.collections.size) {
       log('未从接口读到合集。请先打开作者主页或合集页，再点一次刷新目标。', 'warn');
-      renderCollections('未找到合集（可打开作者合集页后再试）');
+      renderCollections(t('no_collections'));
     } else {
       log(`已读取 ${state.collections.size} 个 Patreon 合集`);
       renderCollections();
@@ -3216,7 +3427,7 @@ function defaultTemplateFor(site) {
     }
 
     if ((response.status === 429 || response.status >= 500) && attempt < 4) {
-      log(`请求过快或服务器繁忙（HTTP ${response.status}），${4 * attempt} 秒后重试…`, 'warn');
+      log(t('msg_busy_http', { status: response.status, seconds: 4 * attempt }), 'warn');
       await sleepAbortable(4000 * attempt, options.signal);
       return requestFantia(url, options, attempt + 1);
     }
@@ -3264,7 +3475,7 @@ function defaultTemplateFor(site) {
     }
 
     if ((response.status === 429 || response.status >= 500) && attempt < 4) {
-      log(`Fanbox 请求过快或服务器繁忙（HTTP ${response.status}），${4 * attempt} 秒后重试…`, 'warn');
+      log(t('msg_busy_http_site', { site: 'Fanbox', status: response.status, seconds: 4 * attempt }), 'warn');
       await sleepAbortable(4000 * attempt, options.signal);
       return requestFanbox(pathOrUrl, options, attempt + 1);
     }
@@ -3346,7 +3557,7 @@ function defaultTemplateFor(site) {
       throw error;
     }
     if ((response.status === 429 || response.status >= 500) && attempt < 4) {
-      log(`Pawchive 请求过快或服务器繁忙（HTTP ${response.status}），${4 * attempt} 秒后重试…`, 'warn');
+      log(t('msg_busy_http_site', { site: 'Pawchive', status: response.status, seconds: 4 * attempt }), 'warn');
       await sleepAbortable(4000 * attempt, options.signal);
       return requestPawchive(pathOrUrl, options, attempt + 1);
     }
@@ -3580,7 +3791,7 @@ function defaultTemplateFor(site) {
     const resolvedSet = new Set(resolved.map((item) => item.from));
     entry.cloudLinks = (entry.cloudLinks || []).filter((link) => !(isIframelyUrl(link.url) && !resolvedSet.has(link.url)));
     if (!resolved.length) {
-      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => row.reason !== '卡片链接待解析');
+      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => row.reason !== t('unresolved_pending') && row.reason !== '卡片链接待解析');
       if (ignoredExternal && ignoredExternal === pending.length) {
         log(`已忽略 ${ignoredExternal} 个非网盘外链卡片`, 'ok');
         return entry;
@@ -3616,7 +3827,7 @@ function defaultTemplateFor(site) {
     // Drop unresolved markers if at least one real cloud link exists now.
     const unresolvedLeft = pending.some((wrap) => !map.has(wrap));
     if (!unresolvedLeft) {
-      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => row.reason !== '卡片链接待解析');
+      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => row.reason !== t('unresolved_pending') && row.reason !== '卡片链接待解析');
     }
     log(`已还原 ${resolved.length} 个网盘卡片${ignoredExternal ? `，忽略 ${ignoredExternal} 个非网盘外链` : ''}`, 'ok');
     return entry;
@@ -3701,7 +3912,7 @@ function defaultTemplateFor(site) {
 
     const hasReal = (entry.cloudLinks || []).some((link) => looksLikeCloudUrl(link.url) && !isIframelyUrl(link.url));
     if (hasReal) {
-      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/卡片链接待解析|未能提取链接|卡片类型无法提取链接/.test(String(row.reason || '')));
+      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/(卡片链接待解析|未能提取链接|卡片类型无法提取链接|Card link pending resolve|Failed to extract link|Card type cannot extract link)/.test(String(row.reason || '')));
       // Drop leftover iframely wrappers once real destinations exist.
       entry.cloudLinks = (entry.cloudLinks || []).filter((link) => !isIframelyUrl(link.url));
       return entry;
@@ -3720,7 +3931,7 @@ function defaultTemplateFor(site) {
     }
     if (!resolved.length) {
       entry.cloudLinks = (entry.cloudLinks || []).filter((link) => !isIframelyUrl(link.url));
-      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/卡片链接待解析|未能提取链接|卡片类型无法提取链接/.test(String(row.reason || '')));
+      entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/(卡片链接待解析|未能提取链接|卡片类型无法提取链接|Card link pending resolve|Failed to extract link|Card type cannot extract link)/.test(String(row.reason || '')));
       if (ignoredExternal && ignoredExternal === pendingWraps.length) {
         log(`已忽略 ${ignoredExternal} 个非网盘外链卡片`, 'ok');
         return entry;
@@ -3744,7 +3955,7 @@ function defaultTemplateFor(site) {
         entry.cloudLinks.push({ url: item.to, provider: cloudProviderLabel(item.to), code: '' });
       }
     }
-    entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/卡片链接待解析|未能提取链接|卡片类型无法提取链接/.test(String(row.reason || '')));
+    entry.unresolvedLinkPosts = (entry.unresolvedLinkPosts || []).filter((row) => !/(卡片链接待解析|未能提取链接|卡片类型无法提取链接|Card link pending resolve|Failed to extract link|Card type cannot extract link)/.test(String(row.reason || '')));
     log(`已还原 ${resolved.length} 个 Fanbox 网盘卡片${ignoredExternal ? `，忽略 ${ignoredExternal} 个非网盘外链` : ''}`, 'ok');
     return entry;
   }
@@ -3864,7 +4075,7 @@ function defaultTemplateFor(site) {
       // Older cache may still hold unresolved iframely wrappers; refresh them.
       if (site === 'pawchive' || site === 'fanbox') {
         const pending = (cached.cloudLinks || []).some((link) => isIframelyUrl(link && link.url))
-          || (cached.unresolvedLinkPosts || []).some((row) => /卡片链接待解析/.test(String(row && row.reason || '')));
+          || (cached.unresolvedLinkPosts || []).some((row) => /(卡片链接待解析|Card link pending resolve)/.test(String(row && row.reason || '')));
         if (pending) {
           const refreshed = site === 'fanbox'
             ? await resolveFanboxCloudLinks(cached, signal)
@@ -4113,7 +4324,7 @@ function defaultTemplateFor(site) {
       }
       state.unlockedPlanIds = null;
       state.planAutoTried = '';
-      renderPlans('正在读取订阅方案…');
+      renderPlans(t('reading_plans'));
     }
 
     let creatorHint = null;
@@ -4142,7 +4353,7 @@ function defaultTemplateFor(site) {
       }
       state.plans = new Map();
       renderTargetInfo();
-      renderPlans('Pawchive 无订阅方案筛选');
+      renderPlans(t('paw_no_plans'));
       renderCollections();
       const unlocked = new Set([FREE_PLAN_KEY]);
       applyUnlockedPlanSelection(site, ownerId, unlocked);
@@ -4181,7 +4392,7 @@ function defaultTemplateFor(site) {
           for (const plan of entry.plans) if (plan && !state.plans.has(plan.id)) state.plans.set(plan.id, plan);
         }
         if (!state.plans.has(PATREONS_PLAN_KEY)) {
-          state.plans.set(PATREONS_PLAN_KEY, normalizePlan({ id: PATREONS_PLAN_KEY, name: '所有付费赞助者', price: '' }));
+          state.plans.set(PATREONS_PLAN_KEY, normalizePlan({ id: PATREONS_PLAN_KEY, name: t('all_paid_patrons'), price: '' }));
         }
       } catch (error) {
         log(`Patreon 方案读取失败：${error.message}`, 'warn');
@@ -4208,7 +4419,7 @@ function defaultTemplateFor(site) {
           const normalized = normalizePlan({
             // Fanbox posts only expose feeRequired, so key plans by fee for stable filtering.
             id: fee > 0 ? `fee:${fee}` : (plan.id != null ? plan.id : 'free'),
-            name: plan.title || plan.name || (fee > 0 ? `${fee.toLocaleString()}円` : '免费'),
+            name: plan.title || plan.name || (fee > 0 ? t('fee_jpy', { fee: fee.toLocaleString() }) : t('free')),
             price: fee || '',
           });
           if (normalized) state.plans.set(normalized.id, normalized);
@@ -4248,7 +4459,7 @@ function defaultTemplateFor(site) {
             const priceMatch = price && price.textContent.match(/([\d,]+)\s*(?:JPY|円|日元)/i);
             state.plans.set(id, {
               id,
-              name: (title && title.textContent.trim()) || `方案 ${id}`,
+              name: (title && title.textContent.trim()) || t('plan_n', { id }),
               price: priceMatch ? Number(priceMatch[1].replace(/,/g, '')) : '',
             });
           }
@@ -4405,12 +4616,12 @@ function defaultTemplateFor(site) {
     applyFilters();
 
     const selectedLabels = [];
-    if (unlocked.has(FREE_PLAN_KEY)) selectedLabels.push('公开内容');
+    if (unlocked.has(FREE_PLAN_KEY)) selectedLabels.push(t('free_content'));
     for (const plan of state.plans.values()) {
       if (unlocked.has(String(plan.id))) selectedLabels.push(plan.name || plan.id);
     }
     state.planAutoTried = key;
-    log(`已自动勾选已解锁方案：${selectedLabels.join('、') || '公开内容'}`, 'ok');
+    log(t('msg_auto_plans', { labels: selectedLabels.join(IS_EN ? ', ' : '、') || t('free_content') }), 'ok');
     return true;
   }
 
@@ -4432,14 +4643,14 @@ function defaultTemplateFor(site) {
     syncTargetWithCurrentPage(true);
     let target = parseTarget(settings.target);
     if (!target) {
-      log(`请输入当前 ${siteLabel(PAGE_SITE)} 的作者主页或投稿链接。`, 'bad');
+      log(t('msg_need_target', { site: siteLabel(PAGE_SITE) }), 'bad');
       return;
     }
 
     let site = targetSite(target);
     maybePreferSiteTemplate(site);
     if (PAGE_SITE !== site) {
-      log(`当前页面是 ${siteLabel(PAGE_SITE)}，但目标是 ${siteLabel(site)}。已清空跨站目标，请填写当前站点链接后再抓取。`, 'bad');
+      log(t('msg_cross_site', { page: siteLabel(PAGE_SITE), target: siteLabel(site) }), 'bad');
       settings.target = targetFromLocation() || '';
       rememberTargetForSite(PAGE_SITE, settings.target);
       saveSettings();
@@ -4459,7 +4670,7 @@ function defaultTemplateFor(site) {
       let cards;
       if (target.postId && settings.scope === 'post') {
         cards = [{ id: target.postId, updatedMs: null }];
-        log(`抓取单个${siteLabel(site)}投稿 #${target.postId}`);
+        log(t('msg_crawl_one', { site: siteLabel(site), id: target.postId }));
         if (site === 'pawchive') {
           rememberPawchivePostHint({
             id: target.postId,
@@ -4479,13 +4690,13 @@ function defaultTemplateFor(site) {
         if (site === 'patreon') {
           await ensurePatreonCollections(ownerId, controller.signal, target.collectionId || '');
         }
-        log(`开始读取 ${siteLabel(site)} 作者 ${state.fanclub && state.fanclub.user ? state.fanclub.user : ownerId} 的投稿列表`);
+        log(t('msg_crawl_list', { site: siteLabel(site), owner: state.fanclub && state.fanclub.user ? state.fanclub.user : ownerId }));
         const fromMs = settings.dateFrom ? dateInputToMs(settings.dateFrom, false) : null;
         const toMs = settings.dateTo ? dateInputToMs(settings.dateTo, true) : null;
         // List APIs are newest-first; stop paging after crossing the lower bound.
         const stopBeforeMs = fromMs == null ? null : (fromMs - DAY);
         const allCards = await listPosts(ownerId, controller.signal, (page, total) => {
-          setStatus(`投稿列表第 ${page} 页，已发现 ${total} 个投稿`);
+          setStatus(t('msg_list_page', { page, total }));
         }, site, { stopBeforeMs });
         cards = allCards.filter((card) => {
           const published = card.publishedMs != null ? card.publishedMs : card.updatedMs;
@@ -4504,19 +4715,19 @@ function defaultTemplateFor(site) {
             const known = state.collections.get(wanted);
             if (known && known.postIds && known.postIds.length) {
               cards = known.postIds.map((id) => ({ id: String(id), updatedMs: null, publishedMs: null, collectionIds: [wanted] }));
-              log(`列表未带合集关系，改用合集 ${wanted} 的 ${cards.length} 个投稿 ID`);
+              log(t('msg_collection_fallback', { id: wanted, n: cards.length }));
             }
           } else if (cards.length !== before) {
-            log(`已按合集 ${wanted} 预筛：${before} → ${cards.length}`);
+            log(t('msg_collection_filter', { id: wanted, before, after: cards.length }));
           }
         }
-        log(`发现 ${allCards.length} 个投稿${allCards.length !== cards.length ? `，按日期/合集预先跳过 ${allCards.length - cards.length} 个` : ''}`);
+        log(`${t('msg_found_posts', { total: allCards.length })}${allCards.length !== cards.length ? t('msg_preskip', { n: allCards.length - cards.length }) : ''}`);
       }
 
       for (let i = 0; i < cards.length; i += 1) {
         if (controller.signal.aborted) break;
         const id = cards[i].id;
-        setStatus(`正在读取投稿 ${i + 1}/${cards.length}（#${id}）`);
+        setStatus(t('msg_reading_post', { i: i + 1, total: cards.length, id }));
         try {
           const { entry, fresh } = await getPostEntry(id, controller.signal, site);
           state.order.push(entry.meta.id);
@@ -4524,21 +4735,21 @@ function defaultTemplateFor(site) {
           if (i % 3 === 0 || i === cards.length - 1) applyFilters();
         } catch (error) {
           if (controller.signal.aborted) break;
-          log(`投稿 #${id} 读取失败：${error.message}`, 'bad');
+          log(t('msg_post_fail', { id, error: error.message }), 'bad');
         }
       }
 
       applyFilters();
       const result = state.filtered;
-      log(controller.signal.aborted ? '抓取已停止，已保留当前结果。' : `抓取完成：${result.posts} 个投稿，${result.items.length} 个文件。`, controller.signal.aborted ? 'warn' : 'ok');
-      if (result.locked) log(`有 ${result.locked} 个所选方案内容尚未解锁（未订阅或订阅等级不足），已跳过。`, 'warn');
-      if (result.streamOnly) log(`有 ${result.streamOnly} 个内容只提供在线播放，没有下载地址。`, 'warn');
+      log(controller.signal.aborted ? t('msg_crawl_stopped') : t('msg_crawl_done', { posts: result.posts, files: result.items.length }), controller.signal.aborted ? 'warn' : 'ok');
+      if (result.locked) log(t('msg_crawl_locked', { n: result.locked }), 'warn');
+      if (result.streamOnly) log(t('msg_crawl_stream', { n: result.streamOnly }), 'warn');
     } catch (error) {
-      if (error.name !== 'AbortError') log(`抓取失败：${error.message}`, 'bad');
+      if (error.name !== 'AbortError') log(t('msg_crawl_fail', { error: error.message }), 'bad');
     } finally {
       state.crawling = false;
       state.crawlAbort = null;
-      setStatus(state.filtered.items.length ? `已就绪：${state.filtered.items.length} 个文件` : '没有可下载的文件');
+      setStatus(state.filtered.items.length ? t('msg_ready_files', { n: state.filtered.items.length }) : t('msg_no_downloadable'));
       renderButtons();
     }
   }
@@ -4559,13 +4770,13 @@ function defaultTemplateFor(site) {
 
   function startDownload() {
     if (!hasNativeDownload()) {
-      log('当前环境不支持下载接口，请使用 Tampermonkey 或 FanLoot 浏览器扩展。', 'bad');
+      log(t('msg_no_download_api'), 'bad');
       return;
     }
     if (state.crawling) return;
     const all = state.filtered.items.slice();
     if (!all.length) {
-      log('没有可下载的文件，请先抓取或调整筛选条件。', 'warn');
+      log(t('msg_no_files'), 'warn');
       return;
     }
     const queue = all.filter((item) => !(settings.skipDownloaded && state.history.has(item.key)));
@@ -4580,7 +4791,7 @@ function defaultTemplateFor(site) {
       total: all.length,
       startedAt: Date.now(),
     };
-    log(`开始下载 ${queue.length} 个文件${state.dl.skipped ? `，跳过 ${state.dl.skipped} 个已下载文件` : ''}`);
+    log(`${t('msg_start_download', { n: queue.length })}${state.dl.skipped ? t('msg_skip_downloaded', { n: state.dl.skipped }) : ''}`);
     switchTab('download');
     pump();
   }
@@ -4595,8 +4806,8 @@ function defaultTemplateFor(site) {
     if (!dl.active.size && !dl.queue.length) {
       dl.running = false;
       const seconds = Math.round((Date.now() - dl.startedAt) / 1000);
-      log(`下载结束：成功 ${dl.done}，失败 ${dl.failed.length}，跳过 ${dl.skipped}，用时 ${seconds} 秒。`, dl.failed.length ? 'warn' : 'ok');
-      setStatus(dl.failed.length ? `下载结束，有 ${dl.failed.length} 个失败` : '全部下载完成');
+      log(t('msg_download_end', { done: dl.done, failed: dl.failed.length, skipped: dl.skipped, seconds }), dl.failed.length ? 'warn' : 'ok');
+      setStatus(dl.failed.length ? t('msg_download_end_fail', { n: dl.failed.length }) : t('msg_download_all_done'));
     }
     renderButtons();
     scheduleProgress();
@@ -4609,27 +4820,27 @@ function defaultTemplateFor(site) {
   function describeDownloadError(error) {
     const code = error && (error.error || error.message || error);
     const hints = {
-      not_whitelisted: '扩展名未加入 Tampermonkey 下载白名单',
-      not_enabled: 'Tampermonkey 未启用下载功能',
-      not_permitted: '浏览器未授予下载权限',
-      not_supported: '当前下载模式不支持此操作',
-      not_succeeded: '下载未成功，链接可能已过期或网络中断',
-      timeout: '下载超时',
-      USER_CANCELED: '用户已取消下载',
-      FILE_ACCESS_DENIED: '文件写入权限不足',
-      FILE_NO_SPACE: '磁盘空间不足',
-      FILE_NAME_TOO_LONG: '文件路径或名称过长',
-      FILE_FAILED: '本地文件保存失败',
-      NETWORK_FAILED: '网络连接失败',
-      NETWORK_TIMEOUT: '网络请求超时',
-      NETWORK_DISCONNECTED: '网络已断开',
-      SERVER_BAD_CONTENT: '服务器返回异常内容（链接可能已失效）',
-      SERVER_FORBIDDEN: '服务器拒绝访问（HTTP 403）',
-      SERVER_UNAUTHORIZED: '未授权或登录已过期（HTTP 401）',
-      SERVER_FAILED: '服务器响应失败',
+      not_whitelisted: t('err_not_whitelisted'),
+      not_enabled: t('err_not_enabled'),
+      not_permitted: t('err_not_permitted'),
+      not_supported: t('err_not_supported'),
+      not_succeeded: t('err_not_succeeded'),
+      timeout: t('err_timeout'),
+      USER_CANCELED: t('err_user_canceled'),
+      FILE_ACCESS_DENIED: t('err_file_access'),
+      FILE_NO_SPACE: t('err_no_space'),
+      FILE_NAME_TOO_LONG: t('err_name_long'),
+      FILE_FAILED: t('err_file_failed'),
+      NETWORK_FAILED: t('err_network_failed'),
+      NETWORK_TIMEOUT: t('err_network_timeout'),
+      NETWORK_DISCONNECTED: t('err_network_disconnected'),
+      SERVER_BAD_CONTENT: t('err_server_bad'),
+      SERVER_FORBIDDEN: t('err_server_forbidden'),
+      SERVER_UNAUTHORIZED: t('err_server_unauthorized'),
+      SERVER_FAILED: t('err_server_failed'),
     };
-    const detail = error && error.details ? `（${typeof error.details === 'string' ? error.details : JSON.stringify(error.details)}）` : '';
-    return `${hints[code] || code || '未知错误'}${detail}`;
+    const detail = error && error.details ? `${IS_EN ? ' (' : '（'}${typeof error.details === 'string' ? error.details : JSON.stringify(error.details)}${IS_EN ? ')' : '）'}` : '';
+    return `${hints[code] || code || t('unknown_error')}${detail}`;
   }
 
   function launch(task) {
@@ -4654,7 +4865,7 @@ function defaultTemplateFor(site) {
           dl.queue.push(task);
         } else {
           dl.failed.push({ task, name, reason: describeDownloadError(error) });
-          log(`下载失败：${name} — ${describeDownloadError(error)}`, 'bad');
+          log(t('msg_download_fail_item', { name, reason: describeDownloadError(error) }), 'bad');
         }
       }
       setTimeout(pump, 0);
@@ -4684,7 +4895,7 @@ function defaultTemplateFor(site) {
     const dl = state.dl;
     if (!dl || !dl.running) return;
     dl.paused = !dl.paused;
-    log(dl.paused ? '已暂停：正在进行的文件会继续完成。' : '继续下载。', 'warn');
+    log(dl.paused ? t('msg_paused') : t('msg_resumed'), 'warn');
     pump();
   }
 
@@ -4699,8 +4910,8 @@ function defaultTemplateFor(site) {
     }
     dl.active.clear();
     dl.queue = [];
-    log('下载已停止。', 'warn');
-    setStatus('下载已停止');
+    log(t('msg_stopped'), 'warn');
+    setStatus(t('msg_status_stopped'));
     renderButtons();
     scheduleProgress();
   }
@@ -4714,7 +4925,7 @@ function defaultTemplateFor(site) {
     dl.running = true;
     dl.paused = false;
     dl.startedAt = Date.now();
-    log(`重试 ${tasks.length} 个失败文件。若仍失败，请重新抓取以刷新下载链接。`);
+    log(t('msg_retry', { n: tasks.length }));
     pump();
   }
 
@@ -4952,9 +5163,10 @@ function defaultTemplateFor(site) {
     }
   `;
 
-  const HTML = `
+  function buildHtml() {
+    return `
     <div class="fdl" id="fdl">
-      <button class="launcher" id="fdl-launch" type="button" title="使用 FanLoot 抓取" aria-label="使用 FanLoot 抓取"><span class="launcher-mark">F</span><span class="badge" id="fdl-badge" hidden></span></button>
+      <button class="launcher" id="fdl-launch" type="button" title="${escapeHtml(t('launcher_title'))}" aria-label="${escapeHtml(t('launcher_title'))}"><span class="launcher-mark">F</span><span class="badge" id="fdl-badge" hidden></span></button>
       <div class="overlay" id="fdl-overlay"></div>
       <section class="panel" role="dialog" aria-modal="true" aria-label="FanLoot">
         <header class="head">
@@ -4963,92 +5175,92 @@ function defaultTemplateFor(site) {
               <div class="mark">F</div>
               <div style="min-width:0">
                 <div class="title">FanLoot</div>
-                <div class="sub" id="fdl-sub">打开 Fantia / Fanbox / Patreon 作者主页或投稿页即可开始</div>
+                <div class="sub" id="fdl-sub">${escapeHtml(t('subtitle_default'))}</div>
               </div>
             </div>
-            <button class="icon-btn" id="fdl-close" type="button" aria-label="关闭">×</button>
+            <button class="icon-btn" id="fdl-close" type="button" aria-label="${escapeHtml(t('close'))}">×</button>
           </div>
           <nav class="tabs">
-            <button class="tab active" type="button" data-tab="crawl">① 抓取筛选</button>
-            <button class="tab" type="button" data-tab="download">② 文件名与下载</button>
-            <button class="tab" type="button" data-tab="more">更多</button>
+            <button class="tab active" type="button" data-tab="crawl">${escapeHtml(t('tab_crawl'))}</button>
+            <button class="tab" type="button" data-tab="download">${escapeHtml(t('tab_download'))}</button>
+            <button class="tab" type="button" data-tab="more">${escapeHtml(t('tab_more'))}</button>
           </nav>
         </header>
 
         <div class="body">
           <div class="pane active" data-pane="crawl">
             <div class="row">
-              <div class="label">抓取目标<small>作者 / 投稿</small></div>
+              <div class="label">${escapeHtml(t('label_target'))}<small>${escapeHtml(t('label_target_small'))}</small></div>
               <div>
-                <input class="input" id="fdl-target" placeholder="Fantia / Fanbox / Patreon 作者主页或投稿链接">
-                <div class="hint" id="fdl-target-info">支持 Fantia / Fanbox / Patreon 作者主页、投稿链接，以及 Patreon 合集链接。</div>
+                <input class="input" id="fdl-target" placeholder="${escapeHtml(t('ph_target'))}">
+                <div class="hint" id="fdl-target-info">${escapeHtml(t('hint_target'))}</div>
                 <div class="seg" id="fdl-scope" hidden>
-                  <label><input type="radio" name="fdl-scope" value="fanclub"><span>该作者全部投稿</span></label>
-                  <label><input type="radio" name="fdl-scope" value="post"><span>仅当前投稿</span></label>
+                  <label><input type="radio" name="fdl-scope" value="fanclub"><span>${escapeHtml(t('scope_all'))}</span></label>
+                  <label><input type="radio" name="fdl-scope" value="post"><span>${escapeHtml(t('scope_one'))}</span></label>
                 </div>
               </div>
             </div>
             <div class="row">
-              <div class="label">投稿日期<small>JST，含起止日</small></div>
+              <div class="label">${escapeHtml(t('label_date'))}<small>${escapeHtml(t('label_date_small'))}</small></div>
               <div id="fdl-date-controls">
                 <div class="inline">
-                  <input class="date" id="fdl-from" type="date" aria-label="开始日期">
-                  <span>至</span>
-                  <input class="date" id="fdl-to" type="date" aria-label="结束日期">
+                  <input class="date" id="fdl-from" type="date" aria-label="${escapeHtml(t('aria_from'))}">
+                  <span>${escapeHtml(t('to'))}</span>
+                  <input class="date" id="fdl-to" type="date" aria-label="${escapeHtml(t('aria_to'))}">
                 </div>
                 <div class="quick">
-                  <button class="mini" type="button" data-quick="30">近 30 天</button>
-                  <button class="mini" type="button" data-quick="90">近 90 天</button>
-                  <button class="mini" type="button" data-quick="year">今年</button>
-                  <button class="mini" type="button" data-quick="clear">不限</button>
+                  <button class="mini" type="button" data-quick="30">${escapeHtml(t('quick_30'))}</button>
+                  <button class="mini" type="button" data-quick="90">${escapeHtml(t('quick_90'))}</button>
+                  <button class="mini" type="button" data-quick="year">${escapeHtml(t('quick_year'))}</button>
+                  <button class="mini" type="button" data-quick="clear">${escapeHtml(t('quick_clear'))}</button>
                 </div>
-                <div class="hint" id="fdl-date-hint" hidden>已选择“仅当前投稿”，不按投稿日期筛选。</div>
+                <div class="hint" id="fdl-date-hint" hidden>${escapeHtml(t('hint_date_single'))}</div>
               </div>
             </div>
             <div class="row">
-              <div class="label">标题关键词<small>可选</small></div>
+              <div class="label">${escapeHtml(t('label_keyword'))}<small>${escapeHtml(t('optional'))}</small></div>
               <div class="two">
-                <input class="input" id="fdl-keyword" placeholder="包含任一关键词">
-                <input class="input" id="fdl-exclude" placeholder="排除关键词">
+                <input class="input" id="fdl-keyword" placeholder="${escapeHtml(t('ph_include'))}">
+                <input class="input" id="fdl-exclude" placeholder="${escapeHtml(t('ph_exclude'))}">
               </div>
             </div>
             <div class="row">
-              <div class="label">限定方案<small>内容区块</small></div>
+              <div class="label">${escapeHtml(t('label_plans'))}<small>${escapeHtml(t('label_plans_small'))}</small></div>
               <div>
                 <div class="chips" id="fdl-plans"></div>
                 <div class="quick">
-                  <button class="mini" type="button" data-plans="all">全选方案</button>
-                  <button class="mini" type="button" data-plans="none">全不选</button>
+                  <button class="mini" type="button" data-plans="all">${escapeHtml(t('plans_all'))}</button>
+                  <button class="mini" type="button" data-plans="none">${escapeHtml(t('plans_none'))}</button>
                 </div>
-                <div class="hint">只能下载你当前账号已解锁的内容；未解锁内容会单独计数。</div>
+                <div class="hint">${escapeHtml(t('hint_plans'))}</div>
               </div>
             </div>
             <div class="row" id="fdl-collections-row" hidden>
-              <div class="label">限定合集<small>Patreon</small></div>
+              <div class="label">${escapeHtml(t('label_collections'))}<small>Patreon</small></div>
               <div>
                 <div class="chips" id="fdl-collections"></div>
                 <div class="quick">
-                  <button class="mini" type="button" data-collections="all">全选合集</button>
-                  <button class="mini" type="button" data-collections="none">全不选</button>
+                  <button class="mini" type="button" data-collections="all">${escapeHtml(t('collections_all'))}</button>
+                  <button class="mini" type="button" data-collections="none">${escapeHtml(t('collections_none'))}</button>
                 </div>
-                <div class="hint">可按合集筛选投稿；未归入任何合集的投稿对应“未合集”。</div>
+                <div class="hint">${escapeHtml(t('hint_collections'))}</div>
               </div>
             </div>
             <div class="row">
-              <div class="label">文件类型</div>
+              <div class="label">${escapeHtml(t('label_types'))}</div>
               <div class="chips" id="fdl-types"></div>
             </div>
             <div class="row">
-              <div class="label">请求间隔</div>
+              <div class="label">${escapeHtml(t('label_delay'))}</div>
               <div class="inline">
                 <input class="number" id="fdl-delay" type="number" min="200" max="10000" step="100">
-                <span class="hint" style="margin:0">毫秒。作品很多时建议 600 以上，降低被限流概率。</span>
+                <span class="hint" style="margin:0">${escapeHtml(t('hint_delay'))}</span>
               </div>
             </div>
             <div class="actions">
-              <button class="btn primary" id="fdl-crawl" type="button">开始抓取</button>
-              <button class="btn ghost" id="fdl-crawl-stop" type="button">停止抓取</button>
-              <button class="btn dark" id="fdl-go-download" type="button" disabled>下一步</button>
+              <button class="btn primary" id="fdl-crawl" type="button">${escapeHtml(t('btn_crawl'))}</button>
+              <button class="btn ghost" id="fdl-crawl-stop" type="button">${escapeHtml(t('btn_crawl_stop'))}</button>
+              <button class="btn dark" id="fdl-go-download" type="button" disabled>${escapeHtml(t('btn_next'))}</button>
             </div>
             <div class="summary" id="fdl-summary"></div>
             <div class="log" id="fdl-log"></div>
@@ -5056,81 +5268,83 @@ function defaultTemplateFor(site) {
 
           <div class="pane" data-pane="download">
             <div class="row">
-              <div class="label">文件名规则<small>用 / 建文件夹</small></div>
+              <div class="label">${escapeHtml(t('label_template'))}<small>${escapeHtml(t('label_template_small'))}</small></div>
               <div>
                 <input class="input mono" id="fdl-template" spellcheck="false">
                 <div class="vars" id="fdl-vars" style="margin-top:9px"></div>
-                <div class="hint">点击变量可插入到光标处。未使用 {ext} 时会自动补扩展名；路径相对于浏览器默认下载目录。</div>
+                <div class="hint">${escapeHtml(t('hint_template'))}</div>
               </div>
             </div>
             <div class="row">
-              <div class="label">日期格式<small>用于 {date}</small></div>
+              <div class="label">${escapeHtml(t('label_date_format'))}<small>${escapeHtml(t('label_date_format_small'))}</small></div>
               <div>
                 <input class="input mono" id="fdl-date-format" spellcheck="false" style="max-width:260px">
-                <div class="hint">可用 YYYY、YY、MM、DD、HH、mm、ss，例如 YYYYMMDD 或 YYYY-MM-DD_HH-mm。</div>
+                <div class="hint">${escapeHtml(t('hint_date_format'))}</div>
               </div>
             </div>
             <div class="row">
-              <div class="label">命名预览</div>
+              <div class="label">${escapeHtml(t('label_preview'))}</div>
               <div class="preview" id="fdl-preview"></div>
             </div>
             <div class="row">
-              <div class="label">下载设置</div>
+              <div class="label">${escapeHtml(t('label_dl_settings'))}</div>
               <div class="inline">
-                <span>同时下载</span>
+                <span>${escapeHtml(t('concurrent'))}</span>
                 <input class="number" id="fdl-concurrency" type="number" min="1" max="6" step="1">
-                <label class="check"><input type="checkbox" id="fdl-skip">跳过已下载过的文件</label>
+                <label class="check"><input type="checkbox" id="fdl-skip">${escapeHtml(t('skip_downloaded'))}</label>
               </div>
             </div>
             <div class="actions">
-              <button class="btn primary" id="fdl-download" type="button">开始下载</button>
-              <button class="btn ghost" id="fdl-pause" type="button">暂停</button>
-              <button class="btn danger" id="fdl-stop" type="button">停止</button>
-              <button class="btn ghost" id="fdl-retry" type="button">重试失败</button>
-              <button class="btn danger" id="fdl-clear-history-dl" type="button">清除记录</button>
+              <button class="btn primary" id="fdl-download" type="button">${escapeHtml(t('btn_download'))}</button>
+              <button class="btn ghost" id="fdl-pause" type="button">${escapeHtml(t('btn_pause'))}</button>
+              <button class="btn danger" id="fdl-stop" type="button">${escapeHtml(t('btn_stop'))}</button>
+              <button class="btn ghost" id="fdl-retry" type="button">${escapeHtml(t('btn_retry'))}</button>
+              <button class="btn danger" id="fdl-clear-history-dl" type="button">${escapeHtml(t('btn_clear_history'))}</button>
             </div>
             <div class="progress"><div class="bar" id="fdl-bar"></div></div>
-            <div class="dl-meta" id="fdl-dl-meta"><span>尚未开始下载</span></div>
+            <div class="dl-meta" id="fdl-dl-meta"><span>${escapeHtml(t('dl_not_started'))}</span></div>
             <div class="active-list" id="fdl-active"></div>
             <div class="fail-list" id="fdl-failed"></div>
           </div>
 
           <div class="pane" data-pane="more">
             <div class="row">
-              <div class="label">导出</div>
+              <div class="label">${escapeHtml(t('label_export'))}</div>
               <div>
-                <button class="btn ghost" id="fdl-copy" type="button">复制当前筛选结果的链接</button>
-                <div class="hint">每行格式：URL + Tab + 预计保存路径。Fantia / Fanbox / Patreon / Pawchive 的直链都可能有时效，Fantia / Fanbox / Patreon 通常还需要保持登录状态。</div>
+                <button class="btn ghost" id="fdl-copy" type="button">${escapeHtml(t('btn_copy'))}</button>
+                <div class="hint">${escapeHtml(t('hint_copy'))}</div>
               </div>
             </div>
             <div class="row">
-              <div class="label">下载记录</div>
+              <div class="label">${escapeHtml(t('label_history'))}</div>
               <div>
                 <div class="inline">
                   <span id="fdl-history-count"></span>
-                  <button class="btn danger" id="fdl-clear-history" type="button">清除记录</button>
+                  <button class="btn danger" id="fdl-clear-history" type="button">${escapeHtml(t('btn_clear_history'))}</button>
                 </div>
-                <div class="hint">记录用于“跳过已下载过的文件”，按 投稿 ID + 文件 ID 识别。</div>
+                <div class="hint">${escapeHtml(t('hint_history'))}</div>
               </div>
             </div>
             <div class="row">
-              <div class="label">使用提示</div>
+              <div class="label">${escapeHtml(t('label_tips'))}</div>
               <ul class="tips">
-                <li>推荐 <b>Tampermonkey</b>。如需按文件夹保存，请在 Tampermonkey 设置的“下载 BETA”中选择 <b>浏览器 API</b>。</li>
-                <li>视频或压缩包下载失败并提示白名单时，请在“下载 BETA → 白名单扩展名”中添加对应扩展名，或使用 <b>/.*/</b>。</li>
-                <li>浏览器若每个文件都弹出“另存为”，请关闭浏览器设置中的“下载前询问每个文件的保存位置”。</li>
-                <li>请在对应网站打开本面板后再抓取：Fantia、Fanbox、Patreon、Pawchive 互相不能跨站代抓。</li>
-                <li>Fantia / Fanbox / Patreon 的下载链接常有时效，失败较多时请重新抓取；Pawchive 多为站点直链，一般更稳定。</li>
-                <li>Patreon 支持按订阅方案与合集筛选；Fanbox / Fantia 主要按订阅方案筛选；Pawchive 无方案概念，按页面可见内容抓取。</li>
-                <li>正文/卡片里的网盘链接可汇总导出。Fanbox 与 Pawchive 的 iframely 卡片会尽量自动还原为真实网盘地址。</li>
+                <li>${t('tip1')}</li>
+                <li>${t('tip2')}</li>
+                <li>${t('tip3')}</li>
+                <li>${t('tip4')}</li>
+                <li>${t('tip5')}</li>
+                <li>${t('tip6')}</li>
+                <li>${t('tip7')}</li>
               </ul>
             </div>
           </div>
         </div>
-        <footer class="foot" id="fdl-foot"><span class="pulse"></span><span id="fdl-status">准备就绪</span></footer>
+        <footer class="foot" id="fdl-foot"><span class="pulse"></span><span id="fdl-status">${escapeHtml(t('status_ready'))}</span></footer>
       </section>
     </div>
   `;
+  }
+
 
 
   function isVisibleFixed(el) {
@@ -5229,7 +5443,7 @@ function defaultTemplateFor(site) {
     const host = document.createElement('div');
     host.id = 'fanloot-downloader';
     const root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = `<style>${CSS}</style>${HTML}`;
+    root.innerHTML = `<style>${CSS}</style>${buildHtml()}`;
     document.documentElement.appendChild(host);
     const $ = (id) => root.querySelector(`#${id}`);
     ui = { root, $ };
@@ -5244,9 +5458,9 @@ function defaultTemplateFor(site) {
     });
 
     $('fdl-types').innerHTML = TYPE_ORDER.map((type) => `
-      <label class="chip"><input type="checkbox" data-type="${type}"><span>${TYPE_LABELS[type]}</span></label>
+      <label class="chip"><input type="checkbox" data-type="${type}"><span>${escapeHtml(typeLabels()[type] || type)}</span></label>
     `).join('');
-    $('fdl-vars').innerHTML = VARIABLES.map(([token, label]) => `
+    $('fdl-vars').innerHTML = variableDefs().map(([token, label]) => `
       <button class="var" type="button" data-var="${token}" title="${escapeHtml(label)}"><code>${token}</code>${escapeHtml(label)}</button>
     `).join('');
 
@@ -5427,15 +5641,15 @@ function defaultTemplateFor(site) {
     $('fdl-copy').addEventListener('click', copyLinks);
     const clearHistory = () => {
       if (!state.history.size) {
-        log('当前没有可清除的下载记录。');
+        log(t('msg_no_history'));
         return;
       }
-      if (!confirm(`确定清除 ${state.history.size} 条下载记录吗？`)) return;
+      if (!confirm(t('msg_confirm_clear_history', { n: state.history.size }))) return;
       state.history.clear();
       gmSet(HISTORY_KEY, []);
       renderHistory();
       applyFilters();
-      log('下载记录已清除。', 'ok');
+      log(t('msg_history_cleared'), 'ok');
     };
     $('fdl-clear-history').addEventListener('click', clearHistory);
     const clearDl = $('fdl-clear-history-dl');
@@ -5662,7 +5876,7 @@ function defaultTemplateFor(site) {
     renderScope();
     if (!target) {
       renderCollections();
-      renderTargetInfo('支持 Fantia / Fanbox / Patreon / Pawchive 作者主页、投稿链接，以及 Patreon 合集链接。');
+      renderTargetInfo(t('hint_target'));
       return;
     }
     const site = targetSite(target);
@@ -5680,7 +5894,7 @@ function defaultTemplateFor(site) {
       }
       renderTargetInfo();
     } catch (error) {
-      renderTargetInfo(`暂时无法识别目标：${error.message}`);
+      renderTargetInfo(t('msg_temp_unrecognized', { error: error.message }));
     }
   }
 
@@ -5688,14 +5902,15 @@ function defaultTemplateFor(site) {
     if (!ui) return;
     const fanclub = state.fanclub;
     const site = fanclub && fanclub.site ? fanclub.site : targetSite(parseTarget(settings.target));
-    const text = message || (fanclub ? `已识别：${siteLabel(site)} · ${fanclub.user || fanclub.name}${fanclub.name && fanclub.user && fanclub.name !== fanclub.user ? ` · ${fanclub.name}` : ''}（${fanclub.id}）` : '正在识别目标…');
+    const displayName = fanclub ? `${fanclub.user || fanclub.name}${fanclub.name && fanclub.user && fanclub.name !== fanclub.user ? ` · ${fanclub.name}` : ''}` : '';
+    const text = message || (fanclub ? t('recognized', { site: siteLabel(site), name: displayName, id: fanclub.id }) : t('identifying'));
     ui.$('fdl-target-info').textContent = text;
     const collectionPart = site === 'patreon' && state.collections.size
-      ? ` · ${state.collections.size} 个合集`
+      ? t('collections_count', { n: state.collections.size })
       : '';
     ui.$('fdl-sub').textContent = fanclub
-      ? `${siteLabel(site)} · ${fanclub.user || fanclub.name} · ${state.plans.size} 个订阅方案${collectionPart}`
-      : '打开 Fantia / Fanbox / Patreon / Pawchive 作者主页或投稿页即可开始';
+      ? t('owner_sub', { site: siteLabel(site), name: fanclub.user || fanclub.name, plans: state.plans.size, collections: collectionPart })
+      : t('subtitle_default');
   }
 
   function formatPlanPrice(plan, site) {
@@ -5719,7 +5934,7 @@ function defaultTemplateFor(site) {
     const site = (state.fanclub && state.fanclub.site) || targetSite(parseTarget(settings.target)) || PAGE_SITE;
     const plans = Array.from(state.plans.values()).sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
     const chips = [
-      { id: FREE_PLAN_KEY, label: '公开内容（无方案限制）' },
+      { id: FREE_PLAN_KEY, label: t('free_plan_chip') },
       ...plans.map((plan) => ({ id: plan.id, label: `${plan.name}${formatPlanPrice(plan, site)}` })),
     ];
     ui.$('fdl-plans').innerHTML = chips.map((chip) => `
@@ -5740,7 +5955,7 @@ function defaultTemplateFor(site) {
     const excluded = new Set((settings.excludedCollections || []).map(String));
     const collections = Array.from(state.collections.values()).sort((a, b) => String(a.title).localeCompare(String(b.title), 'zh'));
     const chips = [
-      { id: COLLECTION_NONE_KEY, label: '未合集' },
+      { id: COLLECTION_NONE_KEY, label: t('collection_none') },
       ...collections.map((item) => ({
         id: item.id,
         label: `${item.title}${item.numPosts ? ` · ${item.numPosts}` : ''}`,
@@ -5755,7 +5970,7 @@ function defaultTemplateFor(site) {
     if (!ui) return;
     const result = state.filtered;
     if (!state.order.length) {
-      ui.$('fdl-summary').innerHTML = `<div class="empty">${state.crawling ? '正在抓取…' : '设置筛选条件后点击“开始抓取”。'}</div>`;
+      ui.$('fdl-summary').innerHTML = `<div class="empty">${state.crawling ? escapeHtml(t('empty_crawling')) : escapeHtml(t('empty_idle'))}</div>`;
       return;
     }
     const counts = Object.fromEntries(TYPE_ORDER.map((type) => [type, 0]));
@@ -5765,16 +5980,16 @@ function defaultTemplateFor(site) {
       knownSize += item.size || 0;
     }
     const cells = [
-      [result.posts, `投稿 / 已读取 ${state.order.length}`],
-      [result.items.length, '待下载文件'],
-      ...TYPE_ORDER.filter((type) => counts[type] || settings.types[type]).map((type) => [counts[type], TYPE_LABELS[type]]),
+      [result.posts, t('summary_posts', { n: state.order.length })],
+      [result.items.length, t('summary_files')],
+      ...TYPE_ORDER.filter((type) => counts[type] || settings.types[type]).map((type) => [counts[type], typeLabels()[type] || type]),
     ];
-    if (knownSize) cells.push([formatBytes(knownSize), '已知大小']);
+    if (knownSize) cells.push([formatBytes(knownSize), t('summary_size')]);
     ui.$('fdl-summary').innerHTML = `
       <div class="stats">${cells.map(([value, label]) => `<div class="stat"><b>${escapeHtml(value)}</b><span>${escapeHtml(label)}</span></div>`).join('')}</div>
-      ${result.locked ? `<div class="notice">有 ${result.locked} 个所选方案的内容区块尚未解锁，已跳过。</div>` : ''}
-      ${result.streamOnly ? `<div class="notice">有 ${result.streamOnly} 个内容只有在线播放，没有下载地址。</div>` : ''}
-      ${settings.types.link && result.linkCount ? `<div class="notice">已提取 ${result.linkCount} 条网盘链接，将汇总到一个文本文件。</div>` : ''}
+      ${result.locked ? `<div class="notice">${escapeHtml(t('notice_locked', { n: result.locked }))}</div>` : ''}
+      ${result.streamOnly ? `<div class="notice">${escapeHtml(t('notice_stream', { n: result.streamOnly }))}</div>` : ''}
+      ${settings.types.link && result.linkCount ? `<div class="notice">${escapeHtml(t('notice_links', { n: result.linkCount }))}</div>` : ''}
     `;
   }
 
@@ -5808,9 +6023,9 @@ function defaultTemplateFor(site) {
   function renderPreview() {
     if (!ui) return;
     const items = state.filtered.items.length ? state.filtered.items.slice(0, 80) : [sampleItem()];
-    const rows = items.map((item) => `<div><i>${escapeHtml(TYPE_LABELS[item.kind])}</i>${escapeHtml(buildPath(item, settings))}</div>`);
-    if (!state.filtered.items.length) rows.unshift('<div><i>示例</i>抓取后将显示真实文件名</div>');
-    if (state.filtered.items.length > 80) rows.push(`<div><i>…</i>另有 ${state.filtered.items.length - 80} 个文件</div>`);
+    const rows = items.map((item) => `<div><i>${escapeHtml(typeLabels()[item.kind] || item.kind)}</i>${escapeHtml(buildPath(item, settings))}</div>`);
+    if (!state.filtered.items.length) rows.unshift(`<div><i>${escapeHtml(t('preview_sample'))}</i>${escapeHtml(t('preview_sample_hint'))}</div>`);
+    if (state.filtered.items.length > 80) rows.push(`<div><i>…</i>${escapeHtml(t('preview_more', { n: state.filtered.items.length - 80 }))}</div>`);
     ui.$('fdl-preview').innerHTML = rows.join('');
   }
 
@@ -5824,7 +6039,7 @@ function defaultTemplateFor(site) {
     ui.$('fdl-go-download').disabled = state.crawling || downloading || !hasCrawlResult;
     ui.$('fdl-download').disabled = state.crawling || downloading || !state.filtered.items.length;
     ui.$('fdl-pause').disabled = !downloading;
-    ui.$('fdl-pause').textContent = dl && dl.paused ? '继续' : '暂停';
+    ui.$('fdl-pause').textContent = dl && dl.paused ? t('btn_resume') : t('btn_pause');
     ui.$('fdl-stop').disabled = !downloading;
     ui.$('fdl-retry').disabled = downloading || !(dl && dl.failed.length);
     ui.$('fdl-foot').classList.toggle('busy', state.crawling || downloading);
@@ -5865,22 +6080,22 @@ function defaultTemplateFor(site) {
     const percent = Math.round((completed / Math.max(dl.total, 1)) * 100);
     ui.$('fdl-bar').style.width = `${percent}%`;
     ui.$('fdl-dl-meta').innerHTML = `
-      <span>完成 ${dl.done} · 失败 ${dl.failed.length} · 跳过 ${dl.skipped} · 等待 ${dl.queue.length}</span>
-      <span>${completed}/${dl.total}（${percent}%）${dl.paused ? ' · 已暂停' : ''}</span>
+      <span>${escapeHtml(t('progress_meta', { done: dl.done, failed: dl.failed.length, skipped: dl.skipped, queued: dl.queue.length }))}</span>
+      <span>${completed}/${dl.total}${IS_EN ? ' (' : '（'}${percent}%${IS_EN ? ')' : '）'}${dl.paused ? escapeHtml(t('progress_paused')) : ''}</span>
     `;
     ui.$('fdl-active').innerHTML = Array.from(dl.active.values()).map((active) => {
       const ratio = active.total ? Math.min(active.loaded / active.total, 1) : 0;
-      const size = active.total ? `${formatBytes(active.loaded)} / ${formatBytes(active.total)}` : (active.loaded ? formatBytes(active.loaded) : '等待响应');
+      const size = active.total ? `${formatBytes(active.loaded)} / ${formatBytes(active.total)}` : (active.loaded ? formatBytes(active.loaded) : t('waiting_response'));
       return `<div class="job"><div class="job-name" title="${escapeHtml(active.name)}">${escapeHtml(active.name)}</div><div class="hint" style="margin:2px 0 0">${size}</div><div class="job-bar"><div style="width:${Math.round(ratio * 100)}%"></div></div></div>`;
     }).join('');
     ui.$('fdl-failed').innerHTML = dl.failed.map((failure) => `<div>✕ ${escapeHtml(failure.name)}<br>&nbsp;&nbsp;${escapeHtml(failure.reason)}</div>`).join('');
-    if (dl.running) setStatus(`${dl.paused ? '已暂停' : '下载中'}：${completed}/${dl.total}`);
+    if (dl.running) setStatus(`${dl.paused ? t('status_paused') : t('status_downloading')}: ${completed}/${dl.total}`);
     renderBadge();
     renderHistory();
   }
 
   function renderHistory() {
-    if (ui) ui.$('fdl-history-count').textContent = `已记录 ${state.history.size} 个文件`;
+    if (ui) ui.$('fdl-history-count').textContent = t('history_count', { n: state.history.size });
   }
 
   function setStatus(text) {
@@ -5908,17 +6123,17 @@ function defaultTemplateFor(site) {
       .filter((item) => item.url)
       .map((item) => `${item.url}\t${buildPath(item, settings)}`);
     if (!lines.length) {
-      log('没有可复制的链接。', 'warn');
+      log(t('msg_no_copy'), 'warn');
       return;
     }
     const text = lines.join('\n');
     try {
       if (typeof GM_setClipboard === 'function') GM_setClipboard(text, 'text');
       else await navigator.clipboard.writeText(text);
-      log(`已复制 ${lines.length} 条链接。`, 'ok');
-      setStatus(`已复制 ${lines.length} 条链接`);
+      log(t('msg_copied', { n: lines.length }), 'ok');
+      setStatus(t('msg_copied', { n: lines.length }));
     } catch (error) {
-      log(`复制失败：${error.message}`, 'bad');
+      log(t('msg_copy_fail', { error: error.message }), 'bad');
     }
   }
 
@@ -5933,7 +6148,7 @@ function defaultTemplateFor(site) {
       }
     }
     mountUI();
-    if (typeof GM_registerMenuCommand === 'function') GM_registerMenuCommand('打开 FanLoot', openPanel);
+    if (typeof GM_registerMenuCommand === 'function') GM_registerMenuCommand(t('open_panel'), openPanel);
   }
 
   init();
