@@ -8,5 +8,3 @@
 dist-extension/_metadata/
 !AGENTS.md
 !privacy.md
-!.cursor/
-!.cursor/**
