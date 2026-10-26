@@ -6,3 +6,5 @@
 !dist-extension/
 !dist-extension/**
 dist-extension/_metadata/
+!AGENTS.md
+!privacy.md
