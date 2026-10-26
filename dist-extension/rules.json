@@ -20,7 +20,7 @@
     "condition": {
       "requestDomains": [
         "downloads.fanbox.cc",
-        "pximg.net",
+        "pixiv.pximg.net",
         "api.fanbox.cc"
       ],
       "resourceTypes": [

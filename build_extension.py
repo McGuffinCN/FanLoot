@@ -267,7 +267,9 @@ RULES_JSON = [
             ],
         },
         'condition': {
-            'requestDomains': ['downloads.fanbox.cc', 'pximg.net', 'api.fanbox.cc'],
+            # Only Fanbox CDN (pixiv.pximg.net). Do NOT use bare pximg.net — that also
+            # matches i.pximg.net and breaks pixiv.net illustration pages with 403.
+            'requestDomains': ['downloads.fanbox.cc', 'pixiv.pximg.net', 'api.fanbox.cc'],
             'resourceTypes': ['xmlhttprequest', 'image', 'media', 'other', 'main_frame', 'sub_frame'],
         },
     },
@@ -290,7 +292,15 @@ RULES_JSON = [
 
 def generate_icons(icons_dir: Path) -> None:
     icons_dir.mkdir(parents=True, exist_ok=True)
-    src_icon = ROOT / 'icon.png' if (ROOT / 'icon.png').exists() else (ROOT / 'icon128.png')
+    candidates = [
+        ROOT / 'icon.png',
+        ROOT / 'icon128.png',
+        ROOT / 'local' / 'assets' / 'icon.png',
+        ROOT / 'local' / 'assets' / 'icon128.png',
+    ]
+    src_icon = next((p for p in candidates if p.exists()), None)
+    if src_icon is None:
+        raise FileNotFoundError('No icon.png / icon128.png found in repo root or local/assets')
     with Image.open(src_icon) as img:
         rgba = img.convert('RGBA')
         for size in (16, 32, 48, 128):
@@ -370,8 +380,8 @@ def build() -> None:
             'https://*.fantia.jp/*',
             'https://fanbox.cc/*',
             'https://*.fanbox.cc/*',
-            'https://*.pximg.net/*',
-            'https://www.pixiv.net/*',
+            'https://pixiv.pximg.net/*',
+            'https://www.pixiv.net/fanbox/*',
             'https://patreon.com/*',
             'https://*.patreon.com/*',
             'https://*.patreonusercontent.com/*',

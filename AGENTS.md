@@ -125,9 +125,10 @@ Store description length matters: English `extensionDescription` must stay ≤ 1
 3. Keep Tampermonkey compatibility. Do not remove `GM_*` paths when adding extension adapters.
 4. Keep Shadow DOM UI self-contained; avoid depending on host-page CSS.
 5. When adding UI text, add both `zh` and `en` keys in `I18N`.
-6. When changing version, bump userscript `@version`; rebuild so `manifest.json` follows it.
-7. Do not broaden host permissions casually. Store review cares about `<all_urls>`-style access.
-8. Do not commit local scratch, PSD sources, or temporary `_tmp_*.py` helpers unless asked.
+6. After product changes, bump userscript `@version` (default **patch**: `x.y.Z+1`), then `python build_extension.py` so `manifest.json` / `content.js` match. Use minor/major only when the user asks.
+7. Commit with a clear message and `git push` to `origin` on the current branch. Do this automatically at the end of each finished change set unless the user says not to push.
+8. Do not broaden host permissions casually. Store review cares about `<all_urls>`-style access.
+9. Do not commit local scratch, PSD sources, or temporary `_tmp_*.py` helpers unless asked.
 
 ## Common tasks
 

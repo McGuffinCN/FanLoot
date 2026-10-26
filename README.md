@@ -32,13 +32,6 @@
 - 复制当前筛选结果的直链与预计保存路径
 - 尽量提取正文 / 卡片中的网盘链接；Fanbox 与 Pawchive 的 iframely 卡片会尝试还原真实地址
 
-## 安装建议
-
-1. 安装 [Tampermonkey](https://www.tampermonkey.net/)
-2. 安装本脚本
-3. 打开目标网站作者主页或投稿页
-4. 点击页面上的 **F** 悬浮按钮，或使用油猴菜单中的「打开 FanLoot」
-
 ### 让文件夹结构生效
 
 若希望按自定义规则分文件夹保存，请到 Tampermonkey 设置：
