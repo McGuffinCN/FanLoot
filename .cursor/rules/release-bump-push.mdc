@@ -1,15 +1,22 @@
 ---
-description: After FanLoot product changes, bump patch version, rebuild extension, commit, and push.
+description: After FanLoot bug fixes / product changes, bump patch and rebuild; ask before git push or GitHub Release.
 alwaysApply: true
 ---
 
-# Auto version bump + push
+# Version bump vs push / release
 
-When finishing a set of product changes in this repo:
+When finishing bug fixes or other product changes in this repo:
 
 1. Bump `fanloot.user.js` `@version` by default **patch** (`1.5.2` → `1.5.3`). Use minor/major only if the user asks.
 2. Run `python build_extension.py` so `dist-extension/` matches.
-3. Commit tracked changes with a clear message (include the new version when relevant).
-4. `git push` to `origin` on the current branch.
+3. Prepare a clear commit message (include the new version when relevant).
 
-Skip bump/push only if the user says not to, or the change is docs/rules-only with no product impact and they did not ask to release.
+**Do not** `git push` or create a GitHub Release / tag automatically.
+
+After local bump + rebuild are done, **ask the user** whether to:
+
+- commit only (local),
+- push to the repo (`origin`), and/or
+- publish a GitHub Release (`vX.Y.Z` with `fanloot-extension.zip` + `fanloot.user.js`).
+
+Skip the version bump only for docs/rules-only edits with no product impact, unless the user asks to release.
