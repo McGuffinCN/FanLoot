@@ -1,7 +1,8 @@
 # FanLoot
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pngfanjjobjjaacbgmdffbpbhhhpmpab?label=Chrome%20Web%20Store&logo=google-chrome&style=flat-square)](https://chromewebstore.google.com/detail/pngfanjjobjjaacbgmdffbpbhhhpmpab?utm_source=item-share-cp)
-[![Greasy Fork](https://img.shields.io/greasyfork/v/601998?label=Greasy%20Fork&logo=greasyfork&style=flat-square)](https://greasyfork.org/zh-CN/scripts/601998-fanloot-%E5%85%A8%E8%83%BD%E8%B5%9E%E5%8A%A9%E5%B9%B3%E5%8F%B0%E4%B8%8B%E8%BD%BD%E5%99%A8)
+[![Greasy Fork](https://img.shields.io/greasyfork/v/601998?label=Greasy%20Fork&style=for-the-badge&logo=greasyfork&logoColor=ea3829&color=c90000)](https://greasyfork.org/zh-CN/scripts/601998-fanloot-%E5%85%A8%E8%83%BD%E8%B5%9E%E5%8A%A9%E5%B9%B3%E5%8F%B0%E4%B8%8B%E8%BD%BD%E5%99%A8)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pngfanjjobjjaacbgmdffbpbhhhpmpab?label=Chrome%20Web%20Store&style=for-the-badge&logo=google-chrome&logoColor=4285F4&color=4285F4)](https://chromewebstore.google.com/detail/pngfanjjobjjaacbgmdffbpbhhhpmpab?utm_source=item-share-cp)
+
 
 批量下载 **Fantia / pixivFANBOX / Patreon / Pawchive** 作者投稿中的图片、视频、音频、附件与正文网盘链接。
 
