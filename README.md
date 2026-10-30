@@ -2,7 +2,7 @@
 
 [![Greasy Fork](https://img.shields.io/greasyfork/v/601998?label=Greasy%20Fork&style=for-the-badge&logo=greasyfork&logoColor=white&color=c90000)](https://greasyfork.org/zh-CN/scripts/601998-fanloot-%E5%85%A8%E8%83%BD%E8%B5%9E%E5%8A%A9%E5%B9%B3%E5%8F%B0%E4%B8%8B%E8%BD%BD%E5%99%A8)
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pngfanjjobjjaacbgmdffbpbhhhpmpab?label=Chrome%20Web%20Store&style=for-the-badge&logo=google-chrome&logoColor=white&color=4285F4)](https://chromewebstore.google.com/detail/pngfanjjobjjaacbgmdffbpbhhhpmpab?utm_source=item-share-cp)
-
+[![Microsoft Edge Add-ons](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fedgeadd-ons.microsoft.com%2Fapi%2Fv1%2Fproducts%2Ffgndinbbbeacfipjpkkbimjphjaljhbg&query=%24.version&prefix=v&label=Microsoft%20Edge&style=for-the-badge&logo=microsoft-edge&logoColor=0078D7&color=0078D7)](https://microsoftedge.microsoft.com/addons/detail/fgndinbbbeacfipjpkkbimjphjaljhbg)
 
 批量下载 **Fantia / pixivFANBOX / Patreon / Pawchive** 作者投稿中的图片、视频、音频、附件与正文网盘链接。
 
