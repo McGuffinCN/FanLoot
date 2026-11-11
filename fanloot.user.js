@@ -37,7 +37,7 @@
 // @connect      *
 // @run-at       document-idle
 // @noframes
-// @license MIT
+// @license GPL-3.0-or-later
 // ==/UserScript==
 
 (function () {
